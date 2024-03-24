@@ -6,39 +6,43 @@
 #    By: agaley <agaley@student.42lyon.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/03/23 00:53:05 by agaley            #+#    #+#              #
-#    Updated: 2024/03/24 05:24:39 by agaley           ###   ########lyon.fr    #
+#    Updated: 2024/03/24 14:54:57 by agaley           ###   ########lyon.fr    #
 #                                                                              #
 # **************************************************************************** #
 
-include .env
+include srcs/.env
 
 VM_DISK=./vm.qcow2
 MEMORY=4096
 VCPU=4
-SSH_PORT=2222
 SHARE_FOLDER=.
 MOUNT_POINT=/home/$(LOGIN)/
 
+SSH_PORT=2222
+SSH_ROOT=@ssh -p $(SSH_PORT) root@localhost
+SSH=@ssh -i ~/.ssh/id_rsa -p $(SSH_PORT) $(LOGIN)@localhost
+
+COMPOSE=$(SSH) -t "cd srcs && docker compose"
 SETUP_VM_SCRIPT=./srcs/setup_vm.sh
 
-all:	build up
+all:	data-dir build up
 
 build:	vm-ready
-	cd srcs && docker compose build
+	$(COMPOSE) build
 
 up: 	vm-ready
-	cd srcs && docker compose up -d
+	$(COMPOSE) up -d
 
 down:	vm-ready
-	cd srcs && docker compose down
+	$(COMPOSE) down
 
 clean:	vm-ready
-	cd srcs && docker compose down --rmi all
+	$(COMPOSE) down --rmi all
 
 re:		clean down all
 
 ssh:	vm-ready vm-ssh-copy
-	ssh -p $(SSH_PORT) $(LOGIN)@localhost -t "bash --login"
+	$(SSH) -t "bash --login"
 
 vm-ready: vm-setup vm-mount
 
@@ -59,22 +63,26 @@ vm-start:
 	fi
 
 vm-stop:
-	@ssh -p $(SSH_PORT) root@localhost 'systemctl poweroff'
+	$(SSH_ROOT) 'systemctl poweroff'
 
 vm-setup: vm-start
 	@while ! ssh -o ConnectTimeout=2 -p $(SSH_PORT) root@localhost echo "VM is up !" 2>/dev/null; do \
 		echo "VM Starting ..."; \
 		sleep 4; \
 	done
-	@ssh -p $(SSH_PORT) root@localhost 'if ! id "$(LOGIN)" &>/dev/null || ! docker -v &>/dev/null; then export LOGIN="$(LOGIN)" && export PASS="$(VM_LOGIN_PASS)" && bash -s; fi' < $(SETUP_VM_SCRIPT)
+	$(SSH_ROOT) 'if ! id "$(LOGIN)" &>/dev/null || ! docker -v &>/dev/null; then export LOGIN="$(LOGIN)" && export PASS="$(VM_LOGIN_PASS)" && bash -s; fi' < $(SETUP_VM_SCRIPT)
 
 vm-mount:
-	@ssh -p $(SSH_PORT) root@localhost 'mountpoint -q $(MOUNT_POINT) || mount -t 9p -o trans=virtio,version=9p2000.L share $(MOUNT_POINT)'
+	$(SSH_ROOT) 'mountpoint -q $(MOUNT_POINT) || mount -t 9p -o trans=virtio,version=9p2000.L share $(MOUNT_POINT)'
 
 vm-ssh-copy:
-	@if [ -f ~/.ssh/id_rsa.pub ]; then \
-		ssh-copy-id -i ~/.ssh/id_rsa.pub -p $(SSH_PORT) $(LOGIN)@localhost; \
+	@if [ -f ~/.ssh/id_rsa.pub ] && ! ssh -o BatchMode=yes -o ConnectTimeout=5 -p $(SSH_PORT) $(LOGIN)@localhost 'exit' 2>&1; then \
+		ssh-copy-id -i ~/.ssh/id_rsa -p $(SSH_PORT) $(LOGIN)@localhost; \
 	fi
 
-.PHONY: all build up down clean fclean re ssh vm-ready vm-start vm-stop vm-setup vm-mount vm-ssh-copy
+data-dir:
+	@if [ ! -d "data" ]; then \
+		mkdir data; \
+	fi
 
+.PHONY: all build up down clean fclean re ssh vm-ready vm-start vm-stop vm-setup vm-mount vm-ssh-copy data-dir
