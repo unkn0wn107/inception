@@ -1,0 +1,24 @@
+x-common-settings: &common-settings
+  restart: unless-stopped
+
+services:
+  nginx:
+    container_name: nginx
+    <<: *common-settings
+    build:
+      context: ./requirements/nginx
+      args:
+        - CERT_DIR="/etc/nginx/certs"
+    ports:
+      - "443:443"
+    volumes:
+      - ${CERTS}:/etc/nginx/certs:ro
+    networks:
+      - frontend
+
+networks:
+  frontend: {}
+  backend: {}
+
+volumes:
+  certs:

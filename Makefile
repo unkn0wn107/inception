@@ -6,7 +6,7 @@
 #    By: agaley <agaley@student.42lyon.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/03/23 00:53:05 by agaley            #+#    #+#              #
-#    Updated: 2024/03/24 14:54:57 by agaley           ###   ########lyon.fr    #
+#    Updated: 2024/03/24 15:13:04 by agaley           ###   ########lyon.fr    #
 #                                                                              #
 # **************************************************************************** #
 
@@ -32,6 +32,9 @@ build:	vm-ready
 
 up: 	vm-ready
 	$(COMPOSE) up -d
+
+info:
+	$(SSH) -t "echo '\n--- Running containers ---'; cd srcs && docker ps; echo '\n--- Docker images ---'; docker images; echo '\n--- Docker volumes ---'; docker volume ls; echo '\n--- Docker networks ---'; docker network ls; echo '\n'"
 
 down:	vm-ready
 	$(COMPOSE) down
