@@ -6,7 +6,7 @@
 #    By: agaley <agaley@student.42lyon.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/03/23 00:53:05 by agaley            #+#    #+#              #
-#    Updated: 2024/03/24 15:13:04 by agaley           ###   ########lyon.fr    #
+#    Updated: 2024/03/25 03:09:51 by agaley           ###   ########lyon.fr    #
 #                                                                              #
 # **************************************************************************** #
 
@@ -36,13 +36,19 @@ up: 	vm-ready
 info:
 	$(SSH) -t "echo '\n--- Running containers ---'; cd srcs && docker ps; echo '\n--- Docker images ---'; docker images; echo '\n--- Docker volumes ---'; docker volume ls; echo '\n--- Docker networks ---'; docker network ls; echo '\n'"
 
+logs: 	vm-ready
+	$(COMPOSE) logs -f
+
 down:	vm-ready
 	$(COMPOSE) down
 
 clean:	vm-ready
 	$(COMPOSE) down --rmi all
 
-re:		clean down all
+fclean:	clean
+	$(SSH_ROOT) 'docker rmi -f $$(docker images -aq) && docker volume rm $$(docker volume ls -q) && docker network rm $$(docker network ls -q) && rm -rf /home/$(LOGIN)/data'
+
+re:		down clean all
 
 ssh:	vm-ready vm-ssh-copy
 	$(SSH) -t "bash --login"
@@ -84,8 +90,9 @@ vm-ssh-copy:
 	fi
 
 data-dir:
-	@if [ ! -d "data" ]; then \
-		mkdir data; \
-	fi
+	@mkdir -p data/certs
+	@mkdir -p data/mariadb
+	@mkdir -p data/wordpress
+	@mkdir -p data/static-website
 
 .PHONY: all build up down clean fclean re ssh vm-ready vm-start vm-stop vm-setup vm-mount vm-ssh-copy data-dir

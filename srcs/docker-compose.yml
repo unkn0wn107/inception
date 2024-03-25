@@ -1,6 +1,9 @@
 x-common-settings: &common-settings
   restart: unless-stopped
 
+x-common-args: &common-args
+  DOMAIN_NAME: ${DOMAIN_NAME}
+
 services:
   nginx:
     container_name: nginx
@@ -8,17 +11,75 @@ services:
     build:
       context: ./requirements/nginx
       args:
-        - CERT_DIR="/etc/nginx/certs"
+        <<: *common-args
+        CERT_DIR: /etc/nginx/certs
     ports:
       - "443:443"
     volumes:
-      - ${CERTS}:/etc/nginx/certs:ro
+      - certs-data:/etc/nginx/certs:ro
     networks:
       - frontend
 
+  wordpress:
+    container_name: wordpress
+    <<: *common-settings
+    build:
+      context: ./requirements/wordpress
+      args:
+        <<: *common-args
+        BR_VERSION: 1.23.2 # WP 6.4.3
+        INSTALL_DIR: /var/www/wordpress
+        DB_USER: ${DB_USER}
+        DB_PASS: ${DB_PASS}
+        DB_NAME: ${DB_NAME}
+    volumes:
+      - wp-data:/var/www/wordpress
+    depends_on:
+      - mariadb
+    networks:
+      - frontend
+      - backend
+
+  mariadb:
+    container_name: mariadb
+    <<: *common-settings
+    build:
+      context: ./requirements/mariadb
+    environment:
+      DB_ROOT_PASS: ${DB_ROOT_PASS}
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASS: ${DB_PASS}
+    volumes:
+      - db-data:/var/lib/mysql
+    networks:
+      - backend
+
 networks:
-  frontend: {}
-  backend: {}
+  frontend:
+    name: frontend
+  backend:
+    name: backend
 
 volumes:
-  certs:
+  certs-data:
+    name: certs-data
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${CERTS_DATA}
+  wp-data:
+    name: wp-data
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${WP_DATA}
+  db-data:
+    name: db-data
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DB_DATA}
