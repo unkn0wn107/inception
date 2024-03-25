@@ -55,6 +55,40 @@ services:
     networks:
       - backend
 
+  redis:
+    <<: *common-settings
+    build:
+      context: ./requirements/redis
+    networks:
+      - backend
+
+  ftp:
+    <<: *common-settings
+    build:
+      context: ./requirements/ftp
+    volumes:
+      - /home/${LOGIN}/data/wordpress:/home/ftpuser/wordpress
+    networks:
+      - backend
+
+  adminer:
+    <<: *common-settings
+    build:
+      context: ./requirements/adminer
+    ports:
+      8888
+    networks:
+      - backend
+
+  varnish:
+    <<: *common-settings
+    build:
+      context: ./requirements/varnish
+    depends_on:
+      - wordpress
+    networks:
+      - frontend
+
 networks:
   frontend:
     name: frontend
