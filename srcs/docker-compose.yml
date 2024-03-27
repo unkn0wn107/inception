@@ -16,7 +16,7 @@ services:
     ports:
       - "443:443"
     volumes:
-      - certs-data:/etc/nginx/certs:ro
+      - certs-data:/etc/nginx/certs
     networks:
       - frontend
 
