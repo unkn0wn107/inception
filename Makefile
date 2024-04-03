@@ -6,7 +6,7 @@
 #    By: agaley <agaley@student.42lyon.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/03/23 00:53:05 by agaley            #+#    #+#              #
-#    Updated: 2024/03/25 03:09:51 by agaley           ###   ########lyon.fr    #
+#    Updated: 2024/04/03 14:40:04 by agaley           ###   ########lyon.fr    #
 #                                                                              #
 # **************************************************************************** #
 
@@ -37,7 +37,7 @@ info:
 	$(SSH) -t "echo '\n--- Running containers ---'; cd srcs && docker ps; echo '\n--- Docker images ---'; docker images; echo '\n--- Docker volumes ---'; docker volume ls; echo '\n--- Docker networks ---'; docker network ls; echo '\n'"
 
 logs: 	vm-ready
-	$(COMPOSE) logs -f
+	$(COMPOSE) logs
 
 down:	vm-ready
 	$(COMPOSE) down
@@ -53,6 +53,9 @@ re:		down clean all
 ssh:	vm-ready vm-ssh-copy
 	$(SSH) -t "bash --login"
 
+sync:
+	rsync -rcvP -e 'ssh -p ${SSH_PORT}' srcs/ ${LOGIN}@localhost:/home/${LOGIN}/srcs
+
 vm-ready: vm-setup vm-mount
 
 vm-start:
@@ -65,9 +68,7 @@ vm-start:
 		-smp $(VCPU) \
 		-drive file=$(VM_DISK),format=qcow2 \
 		-net nic \
-		-net user,hostfwd=tcp::$(SSH_PORT)-:22 \
-		-fsdev local,security_model=passthrough,id=fsdev0,path=$(SHARE_FOLDER) \
-		-device virtio-9p-pci,id=fs0,fsdev=fsdev0,mount_tag=share \
+		-net user,hostfwd=tcp::$(SSH_PORT)-:22,hostfwd=tcp::8080-:80,hostfwd=tcp::4343-:43 \
 		& \
 	fi
 
