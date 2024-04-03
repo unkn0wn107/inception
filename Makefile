@@ -6,19 +6,21 @@
 #    By: agaley <agaley@student.42lyon.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/03/23 00:53:05 by agaley            #+#    #+#              #
-#    Updated: 2024/03/25 03:09:51 by agaley           ###   ########lyon.fr    #
+#    Updated: 2024/04/03 18:04:33 by agaley           ###   ########lyon.fr    #
 #                                                                              #
 # **************************************************************************** #
 
 include srcs/.env
 
 VM_DISK=./vm.qcow2
-MEMORY=4096
-VCPU=4
-SHARE_FOLDER=.
-MOUNT_POINT=/home/$(LOGIN)/
+MEMORY=8192
+VCPU=8
+SHARE_FOLDER=srcs
+MOUNT_POINT=/home/$(LOGIN)/srcs
 
 SSH_PORT=2222
+HTTP_PORT=8080
+HTTPS_PORT=4343
 SSH_ROOT=@ssh -p $(SSH_PORT) root@localhost
 SSH=@ssh -i ~/.ssh/id_rsa -p $(SSH_PORT) $(LOGIN)@localhost
 
@@ -46,7 +48,7 @@ clean:	vm-ready
 	$(COMPOSE) down --rmi all
 
 fclean:	clean
-	$(SSH_ROOT) 'docker rmi -f $$(docker images -aq) && docker volume rm $$(docker volume ls -q) && docker network rm $$(docker network ls -q) && rm -rf /home/$(LOGIN)/data'
+	$(SSH_ROOT) 'docker container prune -f && docker volume prune -f --filter all=1 && docker network prune -f && rm -rf /home/$(LOGIN)/data/*'
 
 re:		down clean all
 
@@ -65,7 +67,7 @@ vm-start:
 		-smp $(VCPU) \
 		-drive file=$(VM_DISK),format=qcow2 \
 		-net nic \
-		-net user,hostfwd=tcp::$(SSH_PORT)-:22 \
+		-net user,hostfwd=tcp::$(SSH_PORT)-:22,hostfwd=tcp::${HTTP_PORT}-:80,hostfwd=tcp::${HTTPS_PORT}-:43 \
 		-fsdev local,security_model=passthrough,id=fsdev0,path=$(SHARE_FOLDER) \
 		-device virtio-9p-pci,id=fs0,fsdev=fsdev0,mount_tag=share \
 		& \
