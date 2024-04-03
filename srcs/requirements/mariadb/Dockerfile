@@ -6,7 +6,7 @@
 #    By: agaley <agaley@student.42lyon.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/03/24 15:24:19 by agaley            #+#    #+#              #
-#    Updated: 2024/03/25 02:58:27 by agaley           ###   ########lyon.fr    #
+#    Updated: 2024/04/03 20:49:02 by agaley           ###   ########lyon.fr    #
 #                                                                              #
 # **************************************************************************** #
 
@@ -27,10 +27,9 @@ RUN ["mkdir", "-p", "/var/log/mysql"]
 RUN ["chown", "-R", "mysql:mysql", "/var/log/mysql"]
 RUN ["mysql_install_db", "--user=mysql", "--ldata=/var/lib/mysql"]
 
-COPY conf/my.cnf /etc/mysql/my.cnf
-COPY tools/setup-db.sh /usr/local/bin/setup-db.sh
-RUN ["chmod", "+x", "/usr/local/bin/setup-db.sh"]
+COPY ["conf/my.cnf", "/etc/mysql/my.cnf"]
+COPY --chmod=755 ["tools/run.sh", "/usr/local/bin/run.sh"]
 
 VOLUME ["/var/lib/mysql"]
 
-ENTRYPOINT ["/usr/local/bin/setup-db.sh"]
+ENTRYPOINT ["/usr/local/bin/run.sh"]
