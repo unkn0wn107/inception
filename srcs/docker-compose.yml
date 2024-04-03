@@ -28,7 +28,7 @@ services:
       args:
         <<: *common-args
         BR_VERSION: 1.23.2 # WP 6.4.3
-        INSTALL_DIR: /var/www/wordpress
+        INSTALL_DIR: /srv/wordpress
         DB_USER: ${DB_USER}
         DB_PASS: ${DB_PASS}
         DB_NAME: ${DB_NAME}
