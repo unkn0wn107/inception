@@ -6,7 +6,7 @@
 #    By: agaley <agaley@student.42lyon.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/03/23 00:53:05 by agaley            #+#    #+#              #
-#    Updated: 2024/04/03 18:04:33 by agaley           ###   ########lyon.fr    #
+#    Updated: 2024/04/03 19:31:00 by agaley           ###   ########lyon.fr    #
 #                                                                              #
 # **************************************************************************** #
 
@@ -27,7 +27,7 @@ SSH=@ssh -i ~/.ssh/id_rsa -p $(SSH_PORT) $(LOGIN)@localhost
 COMPOSE=$(SSH) -t "cd srcs && docker compose"
 SETUP_VM_SCRIPT=./srcs/setup_vm.sh
 
-all:	data-dir build up
+all:	build up
 
 build:	vm-ready
 	$(COMPOSE) build
@@ -48,7 +48,7 @@ clean:	vm-ready
 	$(COMPOSE) down --rmi all
 
 fclean:	clean
-	$(SSH_ROOT) 'docker container prune -f && docker volume prune -f --filter all=1 && docker network prune -f && rm -rf /home/$(LOGIN)/data/*'
+	$(SSH_ROOT) 'docker system prune --all --volumes -f && docker volume rm certs-data db-data wp-data'
 
 re:		down clean all
 
@@ -82,6 +82,7 @@ vm-setup: vm-start
 		sleep 4; \
 	done
 	$(SSH_ROOT) 'if ! id "$(LOGIN)" &>/dev/null || ! docker -v &>/dev/null; then export LOGIN="$(LOGIN)" && export PASS="$(VM_LOGIN_PASS)" && bash -s; fi' < $(SETUP_VM_SCRIPT)
+	$(SSH_ROOT) 'cd /home/$(LOGIN) && mkdir -p data/certs && mkdir -p data/mariadb && mkdir -p data/wordpress && chown -R ${LOGIN}:${LOGIN} data'
 
 vm-mount:
 	$(SSH_ROOT) 'mountpoint -q $(MOUNT_POINT) || mount -t 9p -o trans=virtio,version=9p2000.L share $(MOUNT_POINT)'
@@ -91,10 +92,4 @@ vm-ssh-copy:
 		ssh-copy-id -i ~/.ssh/id_rsa -p $(SSH_PORT) $(LOGIN)@localhost; \
 	fi
 
-data-dir:
-	@mkdir -p data/certs
-	@mkdir -p data/mariadb
-	@mkdir -p data/wordpress
-	@mkdir -p data/static-website
-
-.PHONY: all build up down clean fclean re ssh vm-ready vm-start vm-stop vm-setup vm-mount vm-ssh-copy data-dir
+.PHONY: all build up down clean fclean re ssh vm-ready vm-start vm-stop vm-setup vm-mount vm-ssh-copy
