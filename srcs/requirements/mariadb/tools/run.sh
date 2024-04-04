@@ -1,25 +1,15 @@
-#!/bin/ash
+#!/bin/sh
 
-set -eux
+set -ux
 
-sql=/usr/bin/seed.sql
-
-touch "${sql}"
-
-cat << EOF > "${sql}"
-USE mysql;
-FLUSH PRIVILEGES;
-GRANT ALL ON *.* TO 'root'@'%' IDENTIFIED BY '${DB_ROOT_PASS}' WITH GRANT OPTION;
-GRANT ALL ON *.* TO 'root'@'localhost' IDENTIFIED BY '${DB_ROOT_PASS}' WITH GRANT OPTION;
-SET PASSWORD FOR 'root'@'localhost'=PASSWORD('${DB_ROOT_PASS}');
+mariadbd --bootstrap --skip-grant-tables=0 --datadir=/var/lib/mysql <<EOF
 DROP DATABASE IF EXISTS test;
+ALTER USER 'root'@'localhost' IDENTIFIED BY '${DB_ROOT_PASS}';
+GRANT ALL ON *.* TO 'root'@'localhost' WITH GRANT OPTION;
 CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\` CHARACTER SET utf8 COLLATE utf8_general_ci;
-GRANT ALL ON \`${DB_NAME}\`.* TO '${DB_USER}'@'%' IDENTIFIED BY '${DB_PASS}';
+CREATE USER '${DB_USER}'@'%' IDENTIFIED BY '${DB_PASS}';
+GRANT ALL ON \`${DB_NAME}\`.* TO '${DB_USER}'@'%';
 FLUSH PRIVILEGES;
 EOF
 
-mysqld --user=mysql < "${sql}"
-
-rm -f "${sql}"
-
-mysqld --user=mysql --console
+exec mariadbd -v --user=mysql --console
