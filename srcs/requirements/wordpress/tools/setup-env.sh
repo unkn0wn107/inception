@@ -4,17 +4,17 @@ set -eux
 
 WP_SALTS=$(curl https://api.wordpress.org/secret-key/1.1/salt/)
 
-cat << EOF > "${INSTALL_DIR}/.env"
+cat <<EOF >"${INSTALL_DIR}/.env"
 DB_NAME="${DB_NAME}"
 DB_USER="${DB_USER}"
 DB_PASSWORD="${DB_PASS}"
-# DB_HOST='localhost'
+DB_HOST=mariadb
 # DB_PREFIX='wp_'
-WP_ENV='development'
+WP_ENV='production'
 WP_HOME="${DOMAIN_NAME}"
 # WP_SITEURL="\${WP_HOME}/wp"
 # WP_DEBUG_LOG='/path/to/debug.log'
-$WP_SALTS
+${WP_SALTS}
 EOF
 
 chmod 640 "${INSTALL_DIR}/.env"
