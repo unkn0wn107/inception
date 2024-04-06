@@ -13,10 +13,15 @@ services:
       args:
         <<: *common-args
         CERT_DIR: /etc/nginx/certs
+    environment:
+      DOMAIN_NAME: ${DOMAIN_NAME}
+      CERT_DIR: /etc/nginx/certs
     ports:
-      - "443:443"
+      - 80:80
+      - 443:443
     volumes:
       - certs-data:/etc/nginx/certs
+      - wp-data:/srv/wordpress
     networks:
       - frontend
 
@@ -33,7 +38,7 @@ services:
         DB_PASS: ${DB_PASS}
         DB_NAME: ${DB_NAME}
     volumes:
-      - wp-data:/var/www/wordpress
+      - wp-data:/srv/wordpress
     depends_on:
       - mariadb
     networks:
