@@ -1,8 +1,8 @@
 #!/bin/sh
 
-set -ux
+set -eux
 
-mariadbd --bootstrap --skip-grant-tables=0 --datadir=/var/lib/mysql <<EOF
+mariadbd --bootstrap --skip-grant-tables=0 <<EOF
 DROP DATABASE IF EXISTS test;
 SET PASSWORD FOR 'root'@'localhost' = PASSWORD('${DB_ROOT_PASS}');
 CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\` CHARACTER SET utf8 COLLATE utf8_general_ci;
@@ -13,4 +13,7 @@ GRANT ALL ON \`${DB_NAME}\`.* TO '${DB_USER}'@'localhost';
 FLUSH PRIVILEGES;
 EOF
 
-exec mariadbd -v --user=mysql --datadir=/var/lib/mysql --console
+printf "\n\nDatabase initialized with passwords and default database\n"
+printf "Launching Mariadb ...\n\n"
+
+mariadbd --console

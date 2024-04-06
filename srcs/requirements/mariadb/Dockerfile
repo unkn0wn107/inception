@@ -6,7 +6,7 @@
 #    By: agaley <agaley@student.42lyon.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/03/24 15:24:19 by agaley            #+#    #+#              #
-#    Updated: 2024/04/05 02:17:25 by agaley           ###   ########lyon.fr    #
+#    Updated: 2024/04/06 02:25:12 by agaley           ###   ########lyon.fr    #
 #                                                                              #
 # **************************************************************************** #
 
@@ -16,13 +16,13 @@ LABEL maintainer=${EMAIL}
 
 EXPOSE 3306
 
-RUN apk add --no-cache mariadb mariadb-client mariadb-server-utils
+RUN apk add --no-cache shadow mariadb mariadb-client mariadb-server-utils
 RUN rm -f /var/cache/apk/*
 
-RUN ["mkdir", "-p", "/run/mysqld"]
-RUN ["chown", "-R", "mysql:mysql", "/run/mysqld"]
-RUN ["chown", "-R", "mysql:mysql", "/var/lib/mysql"]
-RUN ["chmod", "755", "/var/lib/mysql"]
+RUN usermod -u 1000 mysql && groupmod -g 1000 mysql
+
+RUN mkdir -p /run/mysqld && chown -R mysql:mysql /run/mysqld && \
+	chown -R mysql:mysql /var/lib/mysql && chmod 755 /var/lib/mysql
 RUN ["mariadb-install-db", "--user=mysql", "--ldata=/var/lib/mysql"]
 
 COPY ["conf/my.cnf", "/etc/mysql/my.cnf"]
@@ -35,5 +35,3 @@ HEALTHCHECK --interval=5s --timeout=60s --retries=10 CMD sh -c 'mysqladmin ping 
 WORKDIR /var/lib/mysql
 
 CMD ["/usr/local/bin/run.sh"]
-
-# CMD ["mariadbd", "-v", "--user=mysql", "--console"]
