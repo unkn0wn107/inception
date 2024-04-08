@@ -3,6 +3,7 @@ x-common-settings: &common-settings
 
 x-common-args: &common-args
   DOMAIN_NAME: ${DOMAIN_NAME}
+  EMAIL: ${EMAIL}
 
 services:
   nginx:

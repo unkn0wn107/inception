@@ -6,11 +6,13 @@
 #    By: agaley <agaley@student.42lyon.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/03/24 15:24:19 by agaley            #+#    #+#              #
-#    Updated: 2024/04/06 02:25:12 by agaley           ###   ########lyon.fr    #
+#    Updated: 2024/04/08 01:40:59 by agaley           ###   ########lyon.fr    #
 #                                                                              #
 # **************************************************************************** #
 
 FROM alpine:3.18
+
+ARG EMAIL
 
 LABEL maintainer=${EMAIL}
 
