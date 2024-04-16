@@ -18,8 +18,8 @@ DB_USER="${DB_USER}"
 DB_PASSWORD="${DB_PASS}"
 DB_HOST=mariadb
 WP_ENV='production'
-WP_HOME="${DOMAIN_NAME}"
-WP_SITEURL="${DOMAIN_NAME}/wp"
+WP_HOME="http://${DOMAIN_NAME}"
+WP_SITEURL="http://${DOMAIN_NAME}/wp"
 # WP_DEBUG_LOG='/path/to/debug.log'
 ${WP_SALTS}
 EOF
@@ -28,6 +28,10 @@ chmod 640 "${INSTALL_DIR}/.env"
 
 cd "${INSTALL_DIR}"
 
-php82 /usr/local/bin/composer install --no-dev
+composer install --no-dev
+
+wp core install --url=${DOMAIN_NAME} --title="inception" --admin_user="${WP_ADMIN}" --admin_password="${WP_ADMIN_PASS}" --admin_email="${WP_ADMIN_EMAIL}" --locale="fr_FR" --skip-email
+
+wp user create "${WP_USER}" "${WP_USER_EMAIL}" --user_pass="${WP_USER_PASS}" --role="author" || true
 
 exec php-fpm82 -F
