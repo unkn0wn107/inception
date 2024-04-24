@@ -43,10 +43,8 @@ COPY --chmod=755 tools/run.sh /usr/local/bin/run.sh
 
 RUN apk add unbound
 
-USER nginx
-
 RUN rm /etc/nginx/conf/nginx.conf
-COPY conf/custom.conf /etc/nginx/conf/nginx.conf
-COPY conf/wordpress.conf /etc/nginx/http.d/wordpress.conf
+COPY --chown=nginx:nginx conf/custom.conf /etc/nginx/conf/nginx.conf
+COPY --chown=nginx:nginx conf/wordpress.conf /etc/nginx/http.d/wordpress.conf
 
 CMD ["/usr/local/bin/run.sh"]
