@@ -12,4 +12,5 @@ if [ ! -f "${KEY_FILE}" ] || [ ! -f "${CRT_FILE}" ]; then
 		-subj "/C=FR/ST=Rhône-Alpes/L=Lyon/O=42/CN=${DOMAIN_NAME}"
 fi
 
+unbound &
 nginx -g "daemon off;"
