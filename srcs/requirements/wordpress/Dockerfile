@@ -6,7 +6,7 @@
 #    By: agaley <agaley@student.42lyon.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/03/24 15:32:22 by agaley            #+#    #+#              #
-#    Updated: 2024/09/02 15:10:31 by agaley           ###   ########lyon.fr    #
+#    Updated: 2024/09/05 18:24:35 by agaley           ###   ########lyon.fr    #
 #                                                                              #
 # **************************************************************************** #
 
@@ -20,7 +20,8 @@ LABEL maintainer=${EMAIL}
 EXPOSE 9000
 
 RUN apk add --no-cache curl git php82 php82-fpm php82-phar php82-mbstring \
-    php82-openssl php82-mysqli
+    php82-openssl php82-mysqli php82-simplexml php82-tokenizer php82-xmlwriter \
+    php82-redis
 RUN rm -f /var/cache/apk/*
 
 RUN ln -s /usr/bin/php82 /usr/local/bin/php

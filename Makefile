@@ -6,7 +6,7 @@
 #    By: agaley <agaley@student.42lyon.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/03/23 00:53:05 by agaley            #+#    #+#              #
-#    Updated: 2024/09/05 15:18:43 by agaley           ###   ########lyon.fr    #
+#    Updated: 2024/09/05 18:14:48 by agaley           ###   ########lyon.fr    #
 #                                                                              #
 # **************************************************************************** #
 
@@ -86,7 +86,7 @@ vm-setup: vm-start
 		sleep 1; \
 	done
 	$(SSH_ROOT) 'if ! id "$(LOGIN)" &>/dev/null || ! docker -v &>/dev/null; then export LOGIN="$(LOGIN)" && export PASS="$(VM_LOGIN_PASS)" && bash -s; fi' < $(SETUP_VM_SCRIPT)
-	$(SSH_ROOT) 'cd /home/$(LOGIN) && mkdir -p data/certs && mkdir -p data/mariadb && mkdir -p data/wordpress && chown -R ${LOGIN}:${LOGIN} data'
+	$(SSH_ROOT) 'cd /home/$(LOGIN) && mkdir -p ${CERTS_DATA} && mkdir -p ${DB_DATA} && mkdir -p ${WP_DATA} && mkdir -p ${REDIS_DATA} && chown -R ${LOGIN}:${LOGIN} data'
 
 vm-mount:
 	$(SSH_ROOT) 'mountpoint -q $(MOUNT_POINT) || mount -t 9p -o trans=virtio,version=9p2000.L share $(MOUNT_POINT)'
