@@ -6,11 +6,11 @@
 #    By: agaley <agaley@student.42lyon.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/03/24 11:53:02 by agaley            #+#    #+#              #
-#    Updated: 2024/04/08 01:53:31 by agaley           ###   ########lyon.fr    #
+#    Updated: 2024/09/02 15:10:28 by agaley           ###   ########lyon.fr    #
 #                                                                              #
 # **************************************************************************** #
 
-FROM alpine:3.18
+FROM alpine:3.19
 
 ARG EMAIL
 ARG CERT_DIR

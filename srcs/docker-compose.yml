@@ -25,6 +25,10 @@ services:
       - wp-data:/srv/wordpress
     networks:
       - frontend
+    develop:
+      watch: 
+        - path: ./requirements/nginx
+          action: rebuild
 
   wordpress:
     container_name: wordpress

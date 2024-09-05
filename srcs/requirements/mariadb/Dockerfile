@@ -6,11 +6,11 @@
 #    By: agaley <agaley@student.42lyon.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/03/24 15:24:19 by agaley            #+#    #+#              #
-#    Updated: 2024/04/08 01:40:59 by agaley           ###   ########lyon.fr    #
+#    Updated: 2024/09/02 15:18:44 by agaley           ###   ########lyon.fr    #
 #                                                                              #
 # **************************************************************************** #
 
-FROM alpine:3.18
+FROM alpine:3.19
 
 ARG EMAIL
 
@@ -24,7 +24,7 @@ RUN rm -f /var/cache/apk/*
 RUN usermod -u 1000 mysql && groupmod -g 1000 mysql
 
 RUN mkdir -p /run/mysqld && chown -R mysql:mysql /run/mysqld && \
-	chown -R mysql:mysql /var/lib/mysql && chmod 755 /var/lib/mysql
+	mkdir -p /var/lib/mysql && chown -R mysql:mysql /var/lib/mysql && chmod 755 /var/lib/mysql
 RUN ["mariadb-install-db", "--user=mysql", "--ldata=/var/lib/mysql"]
 
 COPY ["conf/my.cnf", "/etc/mysql/my.cnf"]
