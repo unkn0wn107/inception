@@ -6,7 +6,7 @@
 #    By: agaley <agaley@student.42lyon.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/03/23 00:53:05 by agaley            #+#    #+#              #
-#    Updated: 2024/09/06 04:17:16 by agaley           ###   ########lyon.fr    #
+#    Updated: 2024/09/06 05:31:06 by agaley           ###   ########lyon.fr    #
 #                                                                              #
 # **************************************************************************** #
 
@@ -25,6 +25,12 @@ MOUNT_POINT=/home/$(LOGIN)/srcs
 SSH_PORT=2222
 HTTP_PORT=8080
 HTTPS_PORT=8443
+
+FTP_COMMAND_PORT=2121
+FTP_DATA_PORT=2020
+FTP_PASSIVE_PORT_MIN=30000
+FTP_PASSIVE_PORT_MAX=30009
+
 SSH=ssh -p $(SSH_PORT) $(LOGIN)@localhost
 SUDO=$(SSH) sudo
 

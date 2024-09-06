@@ -89,6 +89,22 @@ services:
     networks:
       - backend
 
+  ftp:
+    container_name: ftp
+    <<: *common-settings
+    build:
+      context: ./requirements/vsftp
+    environment:
+      FTP_USER: ${FTP_USER}
+      FTP_PASS: ${FTP_PASS}
+    volumes:
+      - wp-data:/srv/wordpress
+    ports:
+      - "21:21"
+      - "30000-30009:30000-30009"
+    networks:
+      - frontend
+
 networks:
   frontend:
     name: frontend
