@@ -1,0 +1,30 @@
+#cloud-config
+users:
+  - name: {{LOGIN}}
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    shell: /bin/bash
+    ssh_authorized_keys:
+      - {{SSH_PUBLIC_KEY}}
+    lock_passwd: false
+    passwd: {{HASHED_VM_LOGIN_PASS}} 
+    groups: [adm, audio, cdrom, dialout, dip, floppy, netdev, plugdev, sudo, video]
+
+ssh_pwauth: false
+disable_root: true
+output: {all: '| tee -a /var/log/cloud-init-output.log'}
+
+packages:
+  - parted
+  - ca-certificates
+  - curl
+  - gnupg
+  - apt-transport-https
+
+ssh:
+  emit_keys_to_console: false
+
+runcmd:
+  - [ sh, -c, "cat /etc/cloud/cloud.cfg; echo ''" ]
+  - [ sh, -c, "echo 'Output log: cat /var/log/cloud-init-output.log'" ]
+
+final_message: "The system is finally up, after $UPTIME seconds"
