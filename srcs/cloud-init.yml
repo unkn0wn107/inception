@@ -5,8 +5,6 @@ users:
     shell: /bin/bash
     ssh_authorized_keys:
       - {{SSH_PUBLIC_KEY}}
-    lock_passwd: false
-    passwd: {{HASHED_VM_LOGIN_PASS}} 
     groups: [adm, audio, cdrom, dialout, dip, floppy, netdev, plugdev, sudo, video]
 
 ssh_pwauth: false

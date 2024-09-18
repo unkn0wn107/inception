@@ -6,7 +6,7 @@
 #    By: agaley <agaley@student.42lyon.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/03/23 00:53:05 by agaley            #+#    #+#              #
-#    Updated: 2024/09/06 05:31:06 by agaley           ###   ########lyon.fr    #
+#    Updated: 2024/09/18 16:09:39 by agaley           ###   ########lyon.fr    #
 #                                                                              #
 # **************************************************************************** #
 
@@ -14,7 +14,7 @@ include srcs/.env
 
 VM_DISK=./vm.qcow2
 VM_DISK_CONFIG=./cloud-init-config
-VM_DISK_SEED=./seed.img
+VM_DISK_SEED=./seed.iso
 VM_DISK_URL=https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-generic-amd64.qcow2
 
 MEMORY=4096
@@ -90,6 +90,9 @@ kill:
 	-pkill -f qemu-system-x86_64
 	-pgrep -f qemu-system-x86_64 | xargs -r kill -9
 
+check:
+	cloud-init schema --config-file $(VM_DISK_CONFIG)
+
 vm-perm:
 	$(SUDO) 'chown -R $(LOGIN):$(LOGIN) /home/$(LOGIN)/data/'
 
@@ -101,22 +104,23 @@ vm-start:
 		cp debian-12-generic-amd64.qcow2 $(VM_DISK); \
 		qemu-img resize $(VM_DISK) +5G; \
 	fi
-	@HASHED_PASS=$$(echo -n "$(VM_LOGIN_PASS)" | openssl passwd -6 -stdin) \
-	&& sed -e 's/{{LOGIN}}/$(LOGIN)/g' \
-		-e "s|{{SSH_PUBLIC_KEY}}|$(shell cat ~/.ssh/id_rsa.pub | sed 's/[\/&]/\\&/g')|g" \
-		-e "s|{{HASHED_VM_LOGIN_PASS}}|$$HASHED_PASS|g" \
-		srcs/cloud-init.yml > $(VM_DISK_CONFIG)
-	@cat $(VM_DISK_CONFIG)
-	@cloud-localds $(VM_DISK_SEED) $(VM_DISK_CONFIG)
+	@if [ ! -f $(VM_DISK_SEED) ]; then \
+		cp debian-12-generic-amd64.qcow2 $(VM_DISK); \
+		sed -e 's/{{LOGIN}}/$(LOGIN)/g' \
+			-e "s|{{SSH_PUBLIC_KEY}}|$(shell cat ~/.ssh/id_rsa.pub | sed 's/[\/&]/\\&/g')|g" \
+			srcs/cloud-init.yml > $(VM_DISK_CONFIG); \
+		cat $(VM_DISK_CONFIG); \
+		xorriso -as mkisofs -o $(VM_DISK_SEED) -volid cidata -joliet -rock $(VM_DISK_CONFIG); \
+	fi
 	@qemu-system-x86_64 \
 		-m $(MEMORY) \
 		-smp $(VCPU) \
 		-drive file=$(VM_DISK),format=qcow2 \
 		-drive file=$(VM_DISK_SEED),format=raw \
-		-netdev user,id=mynet0,hostfwd=tcp::$(SSH_PORT)-:22,hostfwd=tcp::${HTTP_PORT}-:80,hostfwd=tcp::${HTTPS_PORT}-:443 \
-		-device virtio-net-pci,netdev=mynet0 \
-		-netdev user,id=mynet1,hostfwd=tcp::$(FTP_COMMAND_PORT)-:21,hostfwd=tcp::$(FTP_DATA_PORT)-:20 \
-		-device virtio-net-pci,netdev=mynet1 \
+		-netdev user,id=mynetbase,hostfwd=tcp::$(SSH_PORT)-:22,hostfwd=tcp::${HTTP_PORT}-:80,hostfwd=tcp::${HTTPS_PORT}-:443 \
+		-device virtio-net-pci,netdev=mynetbase \
+		-netdev user,id=mynetftp,hostfwd=tcp::$(FTP_COMMAND_PORT)-:21,hostfwd=tcp::$(FTP_DATA_PORT)-:20 \
+		-device virtio-net-pci,netdev=mynetftp \
 		$(foreach port,$(shell seq $(FTP_PASSIVE_PORT_MIN) $(FTP_PASSIVE_PORT_MAX)),\
 			-netdev user,id=mynet$(port),hostfwd=tcp::$(port)-:$(port) \
 			-device virtio-net-pci,netdev=mynet$(port) \
