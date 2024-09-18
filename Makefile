@@ -6,14 +6,14 @@
 #    By: agaley <agaley@student.42lyon.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/03/23 00:53:05 by agaley            #+#    #+#              #
-#    Updated: 2024/09/18 16:09:39 by agaley           ###   ########lyon.fr    #
+#    Updated: 2024/09/18 23:25:21 by agaley           ###   ########lyon.fr    #
 #                                                                              #
 # **************************************************************************** #
 
 include srcs/.env
 
 VM_DISK=./vm.qcow2
-VM_DISK_CONFIG=./cloud-init-config
+VM_DISK_CONFIG=./user-data
 VM_DISK_SEED=./seed.iso
 VM_DISK_URL=https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-generic-amd64.qcow2
 
@@ -110,7 +110,8 @@ vm-start:
 			-e "s|{{SSH_PUBLIC_KEY}}|$(shell cat ~/.ssh/id_rsa.pub | sed 's/[\/&]/\\&/g')|g" \
 			srcs/cloud-init.yml > $(VM_DISK_CONFIG); \
 		cat $(VM_DISK_CONFIG); \
-		xorriso -as mkisofs -o $(VM_DISK_SEED) -volid cidata -joliet -rock $(VM_DISK_CONFIG); \
+		echo "#cloud-config" > meta-data; \	
+		xorriso -as mkisofs -o $(VM_DISK_SEED) -volid cidata -joliet -rock $(VM_DISK_CONFIG) meta-data; \
 	fi
 	@qemu-system-x86_64 \
 		-m $(MEMORY) \

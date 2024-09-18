@@ -24,5 +24,6 @@ ssh:
 runcmd:
   - [ sh, -c, "cat /etc/cloud/cloud.cfg; echo ''" ]
   - [ sh, -c, "echo 'Output log: cat /var/log/cloud-init-output.log'" ]
+  - [ shutdown, -h, now ]
 
 final_message: "The system is finally up, after $UPTIME seconds"
