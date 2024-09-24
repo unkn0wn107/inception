@@ -23,7 +23,6 @@ packages:
   - cloud-initramfs-growroot
   - gdisk
   - parted
-  - lsblk
   - gnupg
 
 # Disk setup
@@ -35,37 +34,12 @@ growpart:
 # Filesystem growth
 resize_rootfs: true
 
-# Write files
 write_files:
-  - path: /etc/docker/daemon.json
+  - path: /etc/modules-loaded.d/9p.conf
     content: |
-      {"data-root": "/store/docker"}
-  - path: /usr/local/bin/initialize_store.sh
-    permissions: '0755'
-    content: |
-      #!/bin/bash
-      set -e
-
-      DEVICE=$(lsblk -o NAME,SIZE -dn | grep 'SIZE_PATTERN' | awk '{print "/dev/" $1}')
-      if [ -z "$DEVICE" ]; then
-        echo "Device not found!"
-        exit 1
-      fi
-
-      parted "$DEVICE" --script -- mklabel gpt
-      parted "$DEVICE" --script -- mkpart primary ext4 0% 100%
-      mkfs.ext4 -F "${DEVICE}1"
-      mkdir -p /store
-      mount "${DEVICE}1" /store
-      chown "{{LOGIN}}:{{LOGIN}}" /store
-
-      echo "${DEVICE}1 /store ext4 defaults,noatime 0 2" >> /etc/fstab
-
-      mkdir -p /store/apt/cache /store/apt/lists /store/docker
-      mv /var/cache/apt /store/apt/cache
-      ln -s /store/apt/cache /var/cache/apt
-      mv /var/lib/apt/lists /store/apt/lists
-      ln -s /store/apt/lists /var/lib/apt/lists
+      fscache
+      9p
+      9pnet_virtio
 
 # Run commands
 runcmd:
@@ -80,12 +54,6 @@ runcmd:
   
   # Update initramfs
   - update-initramfs -u || true
-
-  # Initialize /store using script
-  - /usr/local/bin/initialize_store.sh || exit 1
-
-  # Check if /store is mounted
-  - mount | grep /store || { echo "/store mount failed!"; exit 1; }
 
   # Update and install necessary packages
   - apt-get update -y
@@ -115,10 +83,11 @@ runcmd:
   - mkdir -p /home/{{LOGIN}}/srcs
 
   # Mount the shared folder with error handling
+  - echo 'share /home/{{LOGIN}}/srcs 9p trans=virtio,version=9p2000.L 0 0' >> /etc/fstab
   - mount -t 9p -o trans=virtio,version=9p2000.L share /home/{{LOGIN}}/srcs || exit 1
 
   # Set correct ownership for the mounted directory
-  - chown {{LOGIN}}:{{LOGIN}} /home/{{LOGIN}}/srcs || exit 1
+  - chown {{LOGIN}}:{{LOGIN}} -r /home/{{LOGIN}}/srcs || exit 1
 
   # Final validation checks
   - systemctl is-active docker || { echo "Docker failed to start!"; exit 1; }
