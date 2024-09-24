@@ -6,50 +6,26 @@
 #    By: agaley <agaley@student.42lyon.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/03/23 00:53:05 by agaley            #+#    #+#              #
-#    Updated: 2024/09/18 23:25:21 by agaley           ###   ########lyon.fr    #
+#    Updated: 2024/09/24 11:54:21 by agaley           ###   ########lyon.fr    #
 #                                                                              #
 # **************************************************************************** #
 
 include srcs/.env
 
-VM_DISK=./vm.qcow2
-VM_DISK_CONFIG=./user-data
-VM_DISK_SEED=./seed.iso
-VM_DISK_URL=https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-generic-amd64.qcow2
-
-MEMORY=4096
-VCPU=8
-SHARE_FOLDER=srcs
-MOUNT_POINT=/home/$(LOGIN)/srcs
-
-SSH_PORT=2222
-HTTP_PORT=8080
-HTTPS_PORT=8443
-
-FTP_COMMAND_PORT=2121
-FTP_DATA_PORT=2020
-FTP_PASSIVE_PORT_MIN=30000
-FTP_PASSIVE_PORT_MAX=30009
-
 SSH=ssh -p $(SSH_PORT) $(LOGIN)@localhost
 SUDO=$(SSH) sudo
 
 COMPOSE=$(SSH) -t "cd /home/$(LOGIN)/srcs && docker compose"
-SETUP_VM_SCRIPT=./srcs/setup_vm.sh
 
-all:	vm-start vm-console vm-setup vm-mount build vm-perm up logs
+all:	vm-start build vm-perm up logs
 
 build:
+	$(call wait_for_ssh)
 	$(COMPOSE) build
 
 up:
+	$(call wait_for_ssh)
 	$(COMPOSE) up -d
-
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
 
 info:
 	$(SSH) -t "echo '${BLUE}\n--- Running containers ---${NC}'; cd srcs && sudo docker ps; echo '${BLUE}\n--- Docker images ---${NC}'; sudo docker images; echo '${BLUE}\n--- Docker volumes ---${NC}'; sudo docker volume ls; echo '${BLUE}\n--- Docker networks ---${NC}'; sudo docker network ls; echo '\n'"
@@ -68,7 +44,7 @@ clean:
 
 fclean:	clean
 	-$(SUDO) 'rm -rf /home/$(LOGIN)/data/wordpress && rm -rf /home/$(LOGIN)/data/mariadtob && rm -rf /home/$(LOGIN)/data/certs && docker system prune --all --volumes -f && docker volume rm certs-data db-data wp-data'
-	@rm -f $(VM_DISK) $(VM_DISK_SEED) $(VM_DISK_CONFIG)
+	@rm -f $(VM_DISK) $(VM_DISK_SEED) $(VM_STORE_DISK) $(VM_DISK_CONFIG)
 
 re:		kill fclean all
 
@@ -96,7 +72,9 @@ check:
 vm-perm:
 	$(SUDO) 'chown -R $(LOGIN):$(LOGIN) /home/$(LOGIN)/data/'
 
-vm-start:
+vm-start: vm-prepare vm-run
+
+vm-prepare:
 	@if [ ! -f debian-12-generic-amd64.qcow2 ]; then \
 		wget -O debian-12-generic-amd64.qcow2 $(VM_DISK_URL); \
 	fi
@@ -104,20 +82,24 @@ vm-start:
 		cp debian-12-generic-amd64.qcow2 $(VM_DISK); \
 		qemu-img resize $(VM_DISK) +5G; \
 	fi
+	@if [ ! -f $(VM_STORE_DISK) ]; then \
+		qemu-img create -f qcow2 $(VM_STORE_DISK) 5G; \
+	fi
 	@if [ ! -f $(VM_DISK_SEED) ]; then \
-		cp debian-12-generic-amd64.qcow2 $(VM_DISK); \
 		sed -e 's/{{LOGIN}}/$(LOGIN)/g' \
 			-e "s|{{SSH_PUBLIC_KEY}}|$(shell cat ~/.ssh/id_rsa.pub | sed 's/[\/&]/\\&/g')|g" \
 			srcs/cloud-init.yml > $(VM_DISK_CONFIG); \
-		cat $(VM_DISK_CONFIG); \
-		echo "#cloud-config" > meta-data; \	
+		echo "#cloud-config" > meta-data; \
 		xorriso -as mkisofs -o $(VM_DISK_SEED) -volid cidata -joliet -rock $(VM_DISK_CONFIG) meta-data; \
 	fi
+
+vm-run:
 	@qemu-system-x86_64 \
 		-m $(MEMORY) \
 		-smp $(VCPU) \
-		-drive file=$(VM_DISK),format=qcow2 \
-		-drive file=$(VM_DISK_SEED),format=raw \
+		-drive file=$(VM_DISK),format=qcow2,if=virtio,index=1 \
+		-drive file=$(VM_DISK_SEED),format=raw,if=virtio,index=0 \
+		-drive file=$(VM_STORE_DISK),format=qcow2,if=virtio,index=2 \
 		-netdev user,id=mynetbase,hostfwd=tcp::$(SSH_PORT)-:22,hostfwd=tcp::${HTTP_PORT}-:80,hostfwd=tcp::${HTTPS_PORT}-:443 \
 		-device virtio-net-pci,netdev=mynetbase \
 		-netdev user,id=mynetftp,hostfwd=tcp::$(FTP_COMMAND_PORT)-:21,hostfwd=tcp::$(FTP_DATA_PORT)-:20 \
@@ -131,44 +113,33 @@ vm-start:
 		-no-reboot \
 		-serial mon:stdio \
 		-nographic \
-		-monitor unix:qemu-monitor-socket,server,nowait
-	@echo "${GREEN}VM started in background. Use 'make vm-console' to access the console.${NC}"
+		-monitor unix:qemu-monitor-socket,server,nowait &
+	@echo "${GREEN}VM started in background. Waiting for boot to complete...${NC}"
+	@$(MAKE) vm-console
 
 vm-console:
 	@echo "Connecting to QEMU monitor. Use 'quit' to exit, or 'system_powerdown' to shutdown the VM."
 	@echo "For more commands, type 'help' in the monitor."
 	@echo "To switch between console and monitor, use Ctrl-a c"
-	-@nc -U qemu-monitor-socket
-
-vm-setup:
-	@while ! ssh -o ConnectTimeout=4 -p $(SSH_PORT) $(LOGIN)@localhost echo "${GREEN}VM is up !${NC}" 2>/dev/null; do \
-		echo "${YELLOW}VM Starting ...${NC}"; \
-		sleep 1; \
-	done
-	$(SSH) 'if ! id "$(LOGIN)" &>/dev/null || ! docker -v &>/dev/null; then \
-		sudo bash -s; \
-	fi' < $(SETUP_VM_SCRIPT)
-	$(SSH) 'cd /home/$(LOGIN) && \
-		mkdir -p ${CERTS_DATA} && \
-		mkdir -p ${DB_DATA} && \
-		mkdir -p ${WP_DATA} && \
-		mkdir -p ${REDIS_DATA}'
-	$(SUDO) 'chown -R $(LOGIN):$(LOGIN) /home/$(LOGIN)/data'
-
-vm-mount:
-	$(SUDO) 'mountpoint -q $(MOUNT_POINT) || mount -t 9p -o trans=virtio,version=9p2000.L share $(MOUNT_POINT)'
-
-vm-ssh-copy:
-	@if [ -f ~/.ssh/id_rsa.pub ]; then \
-		if ! ssh -o PasswordAuthentication=no -o BatchMode=yes -p $(SSH_PORT) -i ~/.ssh/id_rsa root@localhost echo "${GREEN}root SSH key already added${NC}" 2>/dev/null; then \
-			ssh-copy-id -i ~/.ssh/id_rsa -p $(SSH_PORT) root@localhost; \
-		fi; \
-		if ! ssh -o PasswordAuthentication=no -o BatchMode=yes -p $(SSH_PORT) -i ~/.ssh/id_rsa $(LOGIN)@localhost echo "${GREEN}user SSH key already added${NC}" 2>/dev/null; then \
-			ssh-copy-id -i ~/.ssh/id_rsa -p $(SSH_PORT) $(LOGIN)@localhost; \
-		fi; \
-	fi
+	@echo "Press Ctrl-C to exit when boot is complete and continue with the build process."
+	-@nc -U qemu-monitor-socket || true
 
 vm-stop:
 	$(SUDO) 'systemctl poweroff'
 
-.PHONY: all build up down clean fclean re ssh vm-ready vm-start vm-stop vm-setup vm-mount vm-ssh-copy vm-console
+.PHONY: all build up down clean fclean re ssh vm-ready vm-start vm-stop vm-setup vm-mount vm-ssh-copy vm-console vm-prepare vm-run
+
+define wait_for_ssh
+	@for i in $$(seq 1 30); do \
+		if $(SSH) -q exit; then \
+			echo "VM is ready."; \
+			break; \
+		fi; \
+		echo "Waiting for SSH connection... ($$i/30)"; \
+		sleep 5; \
+	done
+	@if ! $(SSH) -q exit; then \
+		echo "${RED}Failed to connect to SSH after multiple attempts.${NC}"; \
+		exit 1; \
+	fi
+endef

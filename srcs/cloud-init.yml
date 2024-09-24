@@ -1,4 +1,6 @@
 #cloud-config
+
+# User configuration
 users:
   - name: {{LOGIN}}
     sudo: ALL=(ALL) NOPASSWD:ALL
@@ -7,23 +9,122 @@ users:
       - {{SSH_PUBLIC_KEY}}
     groups: [adm, audio, cdrom, dialout, dip, floppy, netdev, plugdev, sudo, video]
 
-ssh_pwauth: false
-disable_root: true
-output: {all: '| tee -a /var/log/cloud-init-output.log'}
-
-packages:
-  - parted
-  - ca-certificates
-  - curl
-  - gnupg
-  - apt-transport-https
-
+# SSH configuration
 ssh:
   emit_keys_to_console: false
+ssh_pwauth: false
+disable_root: true
 
+# Package management
+package_update: true
+package_upgrade: false
+packages:
+  - cloud-guest-utils
+  - cloud-initramfs-growroot
+  - gdisk
+  - parted
+  - lsblk
+  - gnupg
+
+# Disk setup
+growpart:
+  mode: auto
+  devices: ['/']
+  ignore_growroot_disabled: false
+
+# Filesystem growth
+resize_rootfs: true
+
+# Write files
+write_files:
+  - path: /etc/docker/daemon.json
+    content: |
+      {"data-root": "/store/docker"}
+  - path: /usr/local/bin/initialize_store.sh
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+      set -e
+
+      DEVICE=$(lsblk -o NAME,SIZE -dn | grep 'SIZE_PATTERN' | awk '{print "/dev/" $1}')
+      if [ -z "$DEVICE" ]; then
+        echo "Device not found!"
+        exit 1
+      fi
+
+      parted "$DEVICE" --script -- mklabel gpt
+      parted "$DEVICE" --script -- mkpart primary ext4 0% 100%
+      mkfs.ext4 -F "${DEVICE}1"
+      mkdir -p /store
+      mount "${DEVICE}1" /store
+      chown "{{LOGIN}}:{{LOGIN}}" /store
+
+      echo "${DEVICE}1 /store ext4 defaults,noatime 0 2" >> /etc/fstab
+
+      mkdir -p /store/apt/cache /store/apt/lists /store/docker
+      mv /var/cache/apt /store/apt/cache
+      ln -s /store/apt/cache /var/cache/apt
+      mv /var/lib/apt/lists /store/apt/lists
+      ln -s /store/apt/lists /var/lib/apt/lists
+
+# Run commands
 runcmd:
-  - [ sh, -c, "cat /etc/cloud/cloud.cfg; echo ''" ]
-  - [ sh, -c, "echo 'Output log: cat /var/log/cloud-init-output.log'" ]
-  - [ shutdown, -h, now ]
+  # Validate SSH key configuration
+  - test -n "{{SSH_PUBLIC_KEY}}" || { echo "SSH_PUBLIC_KEY is not set!"; exit 1; }
 
+  # Fix GPT errors
+  - sgdisk -e /dev/vda || true
+  
+  # Ensure root filesystem is resized
+  - cloud-init single --name cc_resizefs --frequency always || true
+  
+  # Update initramfs
+  - update-initramfs -u || true
+
+  # Initialize /store using script
+  - /usr/local/bin/initialize_store.sh || exit 1
+
+  # Check if /store is mounted
+  - mount | grep /store || { echo "/store mount failed!"; exit 1; }
+
+  # Update and install necessary packages
+  - apt-get update -y
+  - apt-get install -y ca-certificates curl gnupg-agent software-properties-common apt-transport-https || exit 1
+
+  # Set up Docker with separate steps
+  - install -m 0755 -d /etc/apt/keyrings
+  - curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg || exit 1
+  - chmod a+r /etc/apt/keyrings/docker.gpg
+  - echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+  - apt-get update -y
+  - apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin || exit 1
+  - systemctl enable docker
+  - systemctl start docker
+  - usermod -aG docker {{LOGIN}}
+  - systemctl daemon-reload
+  - systemctl restart docker || exit 1
+
+  # Create project-specific directories and set ownership
+  - mkdir -p /home/{{LOGIN}}/data/certs
+  - mkdir -p /home/{{LOGIN}}/data/mariadb
+  - mkdir -p /home/{{LOGIN}}/data/wordpress
+  - mkdir -p /home/{{LOGIN}}/data/redis
+  - chown -R {{LOGIN}}:{{LOGIN}} /home/{{LOGIN}}/data
+
+  # Ensure the mount point exists
+  - mkdir -p /home/{{LOGIN}}/srcs
+
+  # Mount the shared folder with error handling
+  - mount -t 9p -o trans=virtio,version=9p2000.L share /home/{{LOGIN}}/srcs || exit 1
+
+  # Set correct ownership for the mounted directory
+  - chown {{LOGIN}}:{{LOGIN}} /home/{{LOGIN}}/srcs || exit 1
+
+  # Final validation checks
+  - systemctl is-active docker || { echo "Docker failed to start!"; exit 1; }
+
+# Output all cloud-init log messages to console
+output: {all: '| tee -a /var/log/cloud-init-output.log'}
+
+# Final message
 final_message: "The system is finally up, after $UPTIME seconds"
