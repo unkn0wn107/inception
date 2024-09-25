@@ -17,12 +17,13 @@ SUDO=$(SSH) sudo
 
 COMPOSE=$(SSH) -t "cd /home/$(LOGIN)/srcs && docker compose"
 
-FWD_LIST=$(shell echo "hostfwd=tcp::$(SSH_PORT)-:22,hostfwd=tcp::${HTTP_PORT}-:80,hostfwd=tcp::${HTTPS_PORT}-:443,hostfwd=tcp::$(FTP_COMMAND_PORT)-:$(FTP_COMMAND_PORT),hostfwd=tcp::$(FTP_DATA_PORT)-:$(FTP_DATA_PORT),$(foreach port,$(FTP_PASSIVE_PORTS),hostfwd=tcp::$(port)-:$(port))" | sed 's/,\s*$$//' | tr ' ' ',')
+define FTP_PASSIVE_PORTS
+	$(shell seq $(FTP_PASSIVE_PORT_MIN) $(FTP_PASSIVE_PORT_MAX))
+endef
 
-all:	vm-check up logs
+all:	init-env vm-check up logs
 
 up:
-	$(call wait_for_ssh)
 	$(COMPOSE) up --build -d
 
 info:
@@ -37,12 +38,15 @@ watch:
 down:
 	$(COMPOSE) down
 
+stop: down
+	$(SUDO) 'systemctl poweroff'
+
 clean:
 	-$(COMPOSE) down --rmi all
 
 fclean:	clean
 	-$(SUDO) 'rm -rf /home/$(LOGIN)/data/wordpress && rm -rf /home/$(LOGIN)/data/mariadtob && rm -rf /home/$(LOGIN)/data/certs && docker system prune --all --volumes -f && docker volume rm certs-data db-data wp-data'
-	@rm -f $(VM_DISK) $(VM_DISK_SEED) $(VM_STORE_DISK) $(VM_DISK_CONFIG)
+	@rm -f $(VM_DISK) $(VM_DISK_SEED) $(VM_DISK_CONFIG)
 
 re:		kill fclean all
 
@@ -77,7 +81,7 @@ check:
 
 vm-check:
 	@if [ -e qemu-monitor-socket ]; then \
-		echo "VM is already running. Skipping vm-start."; \
+		echo "VM is already running. Using it."; \
 	else \
 		echo "VM is not running. Starting VM..."; \
 		$(MAKE) vm-start; \
@@ -93,9 +97,6 @@ vm-prepare:
 		cp debian-12-generic-amd64.qcow2 $(VM_DISK); \
 		qemu-img resize $(VM_DISK) +5G; \
 	fi
-	@if [ ! -f $(VM_STORE_DISK) ]; then \
-		qemu-img create -f qcow2 $(VM_STORE_DISK) 5G; \
-	fi
 	@if [ ! -f $(VM_DISK_SEED) ]; then \
 		sed -e 's/{{LOGIN}}/$(LOGIN)/g' \
 			-e "s|{{SSH_PUBLIC_KEY}}|$(shell cat ~/.ssh/id_rsa.pub | sed 's/[\/&]/\\&/g')|g" \
@@ -110,7 +111,6 @@ vm-run:
 		-smp $(VCPU) \
 		-drive file=$(VM_DISK),format=qcow2,if=virtio,index=1 \
 		-drive file=$(VM_DISK_SEED),format=raw,if=virtio,index=0 \
-		-drive file=$(VM_STORE_DISK),format=qcow2,if=virtio,index=2 \
 		-netdev user,id=mynet0,$(FWD_LIST) \
 		-device virtio-net-pci,netdev=mynet0 \
 		-fsdev local,security_model=passthrough,id=fsdev0,path=$(SHARE_FOLDER) \
@@ -125,23 +125,21 @@ vm-run:
 vm-stop:
 	$(SUDO) 'systemctl poweroff'
 
-.PHONY: all up down clean fclean re ssh vm-ready vm-start vm-stop vm-setup vm-mount vm-ssh-copy vm-console vm-prepare vm-run
-
-define wait_for_ssh
-	@for i in $$(seq 1 60); do \
-		if $(SSH) -q exit; then \
-			echo "VM is ready."; \
-			break; \
-		fi; \
-		echo "Waiting for SSH connection... ($$i/60)"; \
-		sleep 5; \
-	done; \
-	if ! $(SSH) -q exit; then \
-		echo "${RED}Failed to connect to SSH after multiple attempts.${NC}"; \
-		exit 1; \
+init-env:
+	@if [ ! -f srcs/.env ]; then \
+		echo "Creating .env ..."; \
+		cp srcs/.env.example srcs/.env; \
+		sed -i 's/^LOGIN=.*/LOGIN=$(shell whoami)/' srcs/.env; \
+		sed -i 's/^VM_LOGIN_PASS=.*/VM_LOGIN_PASS=$(shell openssl rand -base64 12)/' srcs/.env; \
+		sed -i 's/^DB_ROOT_PASS=.*/DB_ROOT_PASS=$(shell openssl rand -base64 12)/' srcs/.env; \
+		sed -i 's/^DB_PASS=.*/DB_PASS=$(shell openssl rand -base64 12)/' srcs/.env; \
+		sed -i 's/^WP_ADMIN_PASS=.*/WP_ADMIN_PASS=$(shell openssl rand -base64 12)/' srcs/.env; \
+		sed -i 's/^WP_USER_PASS=.*/WP_USER_PASS=$(shell openssl rand -base64 12)/' srcs/.env; \
+		sed -i 's/^REDIS_PASS=.*/REDIS_PASS=$(shell openssl rand -base64 12)/' srcs/.env; \
+		sed -i 's/^FTP_PASS=.*/FTP_PASS=$(shell openssl rand -base64 12)/' srcs/.env; \
+		echo "Created .env file with secure passwords."; \
+	else \
+		echo ".env file already exists. Using it."; \
 	fi
-endef
 
-define FTP_PASSIVE_PORTS
-	$(shell seq $(FTP_PASSIVE_PORT_MIN) $(FTP_PASSIVE_PORT_MAX))
-endef
+.PHONY: all up down clean fclean re ssh vm-ready vm-start vm-stop vm-setup vm-mount vm-ssh-copy vm-console vm-prepare vm-run

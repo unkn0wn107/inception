@@ -5,8 +5,8 @@
 #                                                     +:+ +:+         +:+      #
 #    By: agaley <agaley@student.42lyon.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
-#    Created: 2024/09/05 19:48:55 by agaley            #+#    #+#              #
-#    Updated: 2024/09/25 20:07:36 by agaley           ###   ########lyon.fr    #
+#    Created: 2024/09/25 18:14:48 by agaley            #+#    #+#              #
+#    Updated: 2024/09/25 23:18:50 by agaley           ###   ########lyon.fr    #
 #                                                                              #
 # **************************************************************************** #
 
@@ -14,10 +14,18 @@ FROM alpine:3.19
 
 LABEL maintainer=${EMAIL}
 
-RUN apk add --no-cache vsftpd
+RUN apk add --no-cache go git
 
-COPY vsftpd.conf /etc/vsftpd/vsftpd.conf
+RUN mkdir -p /go/src/github.com/mailhog && \
+	cd /go/src/github.com/mailhog && \
+	git clone https://github.com/mailhog/MailHog.git && \
+	cd MailHog && \
+	go mod init github.com/mailhog/MailHog && \
+	go mod tidy && \
+	go build -mod=mod -o MailHog
 
-COPY --chmod=755 run.sh /usr/local/bin/run.sh
+EXPOSE 1025 8025
 
-CMD [ "/usr/local/bin/run.sh" ]
+WORKDIR /go/src/github.com/mailhog/MailHog
+
+CMD ["./MailHog"]

@@ -73,10 +73,7 @@ runcmd:
   - systemctl restart docker || exit 1
 
   # Create project-specific directories and set ownership
-  - mkdir -p /home/{{LOGIN}}/data/certs
-  - mkdir -p /home/{{LOGIN}}/data/mariadb
-  - mkdir -p /home/{{LOGIN}}/data/wordpress
-  - mkdir -p /home/{{LOGIN}}/data/redis
+  - mkdir -p /home/{{LOGIN}}/data/{wordpress,mariadb,certs,redis,adminer,mailhog}
   - chown -R {{LOGIN}}:{{LOGIN}} /home/{{LOGIN}}/data
 
   # Ensure the mount point exists

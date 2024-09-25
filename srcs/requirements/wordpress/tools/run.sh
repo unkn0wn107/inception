@@ -44,7 +44,11 @@ Config::define('WP_REDIS_HOST', env('REDIS_HOST')); \
 Config::define('WP_REDIS_PORT', env('REDIS_PORT')); \
 Config::define('WP_REDIS_PASSWORD', env('REDIS_PASSWORD')); \
 Config::define('WP_REDIS_DATABASE', env('REDIS_DATABASE')); \
-Config::define('WP_CACHE', env('WP_CACHE'));" "${INSTALL_DIR}/config/application.php"
+Config::define('WP_CACHE', env('WP_CACHE')); \
+Config::define('SMTP_HOST', env('SMTP_HOST') ?: 'mailhog'); \
+Config::define('SMTP_PORT', env('SMTP_PORT') ?: 1025); \
+Config::define('SMTP_AUTH', env('SMTP_AUTH') ?: false); \
+Config::define('SMTP_SECURE', env('SMTP_SECURE') ?: '');" "${INSTALL_DIR}/config/application.php"
 
 wp core install --url=${DOMAIN_NAME}:8443 --title="inception" --admin_user="${WP_ADMIN}" --admin_password="${WP_ADMIN_PASS}" --admin_email="${WP_ADMIN_EMAIL}" --locale="fr_FR" --skip-email
 
@@ -52,5 +56,18 @@ wp user create "${WP_USER}" "${WP_USER_EMAIL}" --user_pass="${WP_USER_PASS}" --r
 
 wp plugin activate redis-cache
 wp redis enable
+
+# Add custom SMTP configuration function
+cat <<EOF >> "${INSTALL_DIR}/web/app/mu-plugins/custom-smtp.php"
+<?php
+add_action( 'phpmailer_init', 'custom_phpmailer_init' );
+function custom_phpmailer_init( \$phpmailer ) {
+    \$phpmailer->isSMTP();
+    \$phpmailer->Host = SMTP_HOST;
+    \$phpmailer->Port = SMTP_PORT;
+    \$phpmailer->SMTPAuth = SMTP_AUTH;
+    \$phpmailer->SMTPSecure = SMTP_SECURE;
+}
+EOF
 
 exec php-fpm82 -F

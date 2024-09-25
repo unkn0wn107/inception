@@ -6,7 +6,7 @@
 #    By: agaley <agaley@student.42lyon.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/03/24 15:32:22 by agaley            #+#    #+#              #
-#    Updated: 2024/09/05 18:24:35 by agaley           ###   ########lyon.fr    #
+#    Updated: 2024/09/25 22:29:44 by agaley           ###   ########lyon.fr    #
 #                                                                              #
 # **************************************************************************** #
 
@@ -21,7 +21,7 @@ EXPOSE 9000
 
 RUN apk add --no-cache curl git php82 php82-fpm php82-phar php82-mbstring \
     php82-openssl php82-mysqli php82-simplexml php82-tokenizer php82-xmlwriter \
-    php82-redis
+    php82-redis php82-curl
 RUN rm -f /var/cache/apk/*
 
 RUN ln -s /usr/bin/php82 /usr/local/bin/php
@@ -40,5 +40,8 @@ COPY --chmod=755 tools/run.sh /usr/local/bin/run.sh
 VOLUME ${INSTALL_DIR}
 
 USER php
+
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
+    CMD php82 -m || exit 1
 
 CMD [ "/usr/local/bin/run.sh" ]

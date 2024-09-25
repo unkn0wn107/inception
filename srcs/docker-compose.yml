@@ -107,8 +107,56 @@ services:
       - "${FTP_COMMAND_PORT}:${FTP_COMMAND_PORT}"
       - "${FTP_DATA_PORT}:${FTP_DATA_PORT}"
       - "${FTP_PASSIVE_PORT_MIN}-${FTP_PASSIVE_PORT_MAX}:${FTP_PASSIVE_PORT_MIN}-${FTP_PASSIVE_PORT_MAX}"
+    depends_on:
+      - wordpress
     networks:
       - frontend
+
+  static-site:
+    container_name: static-site
+    <<: *common-settings
+    build:
+      context: ./requirements/static-site
+      args:
+        <<: *common-args
+    environment:
+      DOMAIN_NAME: ${DOMAIN_NAME}
+    ports:
+      - ${STATIC_PORT}:80
+    networks:
+      - frontend
+
+  adminer:
+    container_name: adminer
+    <<: *common-settings
+    build:
+      context: ./requirements/adminer
+    environment:
+      ADMINER_DEFAULT_SERVER: mariadb
+    ports:
+      - "${ADMINER_PORT:-8081}:8080"
+    volumes:
+      - adminer-data:/var/lib/adminer
+    depends_on:
+      - mariadb
+    networks:
+      - backend
+
+  mailhog:
+    container_name: mailhog
+    <<: *common-settings
+    build:
+      context: ./requirements/mailhog
+    environment:
+      MAILHOG_PORT: ${MAILHOG_PORT}
+    ports:
+      - "1025:1025"
+      - "${MAILHOG_PORT}:8025"
+    volumes:
+      - mailhog-data:/maildir
+    networks:
+      - frontend
+      - backend
 
 networks:
   frontend:
@@ -145,3 +193,17 @@ volumes:
       type: none
       o: bind
       device: ${REDIS_DATA}
+  adminer-data:
+    name: adminer-data
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${ADMINER_DATA}
+  mailhog-data:
+    name: mailhog-data
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${MAILHOG_DATA}

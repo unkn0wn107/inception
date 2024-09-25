@@ -1,7 +1,10 @@
 .env
 vm.qcow2
 data/
+user-data
 meta-data
 *.qcow2
 *.img
+*.iso
 *.log
+*.old

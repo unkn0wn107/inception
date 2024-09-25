@@ -5,19 +5,30 @@
 #                                                     +:+ +:+         +:+      #
 #    By: agaley <agaley@student.42lyon.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
-#    Created: 2024/09/05 19:48:55 by agaley            #+#    #+#              #
-#    Updated: 2024/09/25 20:07:36 by agaley           ###   ########lyon.fr    #
+#    Created: 2024/09/25 18:14:48 by agaley            #+#    #+#              #
+#    Updated: 2024/09/25 21:05:45 by agaley           ###   ########lyon.fr    #
 #                                                                              #
 # **************************************************************************** #
 
 FROM alpine:3.19
 
+ARG EMAIL
+ARG CERT_DIR
+
 LABEL maintainer=${EMAIL}
 
-RUN apk add --no-cache vsftpd
+EXPOSE 80
 
-COPY vsftpd.conf /etc/vsftpd/vsftpd.conf
+RUN apk add --no-cache nginx openssl shadow && \
+	rm -f /var/cache/apk/*
 
-COPY --chmod=755 run.sh /usr/local/bin/run.sh
+RUN rm -rf /usr/share/nginx/html/*
+COPY ./app /usr/share/nginx/html
+COPY ./static-site.conf /etc/nginx/http.d/default.conf
 
-CMD [ "/usr/local/bin/run.sh" ]
+RUN usermod -u 1000 nginx && groupmod -g 1000 nginx && \
+	chown -R nginx:nginx /run/nginx /etc/nginx /var/lib/nginx /var/log/nginx /usr/share/nginx/html
+
+USER nginx
+
+CMD ["nginx", "-g", "daemon off;"]
