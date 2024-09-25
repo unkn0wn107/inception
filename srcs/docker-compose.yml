@@ -94,14 +94,19 @@ services:
     <<: *common-settings
     build:
       context: ./requirements/vsftp
+    volumes:
+      - wp-data:/srv/wordpress
     environment:
       FTP_USER: ${FTP_USER}
       FTP_PASS: ${FTP_PASS}
-    volumes:
-      - wp-data:/srv/wordpress
+      FTP_COMMAND_PORT: ${FTP_COMMAND_PORT}
+      FTP_DATA_PORT: ${FTP_DATA_PORT}
+      FTP_PASSIVE_PORT_MIN: ${FTP_PASSIVE_PORT_MIN}
+      FTP_PASSIVE_PORT_MAX: ${FTP_PASSIVE_PORT_MAX}
     ports:
-      - "21:21"
-      - "30000-30009:30000-30009"
+      - "${FTP_COMMAND_PORT}:${FTP_COMMAND_PORT}"
+      - "${FTP_DATA_PORT}:${FTP_DATA_PORT}"
+      - "${FTP_PASSIVE_PORT_MIN}-${FTP_PASSIVE_PORT_MAX}:${FTP_PASSIVE_PORT_MIN}-${FTP_PASSIVE_PORT_MAX}"
     networks:
       - frontend
 

@@ -1,3 +1,7 @@
 .env
 vm.qcow2
 data/
+meta-data
+*.qcow2
+*.img
+*.log

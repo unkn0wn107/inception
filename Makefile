@@ -6,7 +6,7 @@
 #    By: agaley <agaley@student.42lyon.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/03/23 00:53:05 by agaley            #+#    #+#              #
-#    Updated: 2024/09/24 11:54:21 by agaley           ###   ########lyon.fr    #
+#    Updated: 2024/09/25 17:30:38 by agaley           ###   ########lyon.fr    #
 #                                                                              #
 # **************************************************************************** #
 
@@ -17,21 +17,19 @@ SUDO=$(SSH) sudo
 
 COMPOSE=$(SSH) -t "cd /home/$(LOGIN)/srcs && docker compose"
 
-all:	vm-start build vm-perm up logs
+FWD_LIST=$(shell echo "hostfwd=tcp::$(SSH_PORT)-:22,hostfwd=tcp::${HTTP_PORT}-:80,hostfwd=tcp::${HTTPS_PORT}-:443,hostfwd=tcp::$(FTP_COMMAND_PORT)-:$(FTP_COMMAND_PORT),hostfwd=tcp::$(FTP_DATA_PORT)-:$(FTP_DATA_PORT),$(foreach port,$(FTP_PASSIVE_PORTS),hostfwd=tcp::$(port)-:$(port))" | sed 's/,\s*$$//' | tr ' ' ',')
 
-build:
-	$(call wait_for_ssh)
-	$(COMPOSE) build
+all:	vm-check up logs
 
 up:
 	$(call wait_for_ssh)
-	$(COMPOSE) up -d
+	$(COMPOSE) up --build -d
 
 info:
 	$(SSH) -t "echo '${BLUE}\n--- Running containers ---${NC}'; cd srcs && sudo docker ps; echo '${BLUE}\n--- Docker images ---${NC}'; sudo docker images; echo '${BLUE}\n--- Docker volumes ---${NC}'; sudo docker volume ls; echo '${BLUE}\n--- Docker networks ---${NC}'; sudo docker network ls; echo '\n'"
 
 logs:
-	$(COMPOSE) logs -f | sed -e 's/\(Error.*\)/${RED}\1${NC}/g' -e 's/\(Warning.*\)/${YELLOW}\1${NC}/g' -e 's/\(Info.*\)/${GREEN}\1${NC}/g'
+	$(COMPOSE) logs -f | sed -e 's/\(Error.*\)/\x1b[0;31m\1\x1b[0m/g' -e 's/\(Warning.*\)/\x1b[0;33m\1\x1b[0m/g' -e 's/\(Info.*\)/\x1b[0;32m\1\x1b[0m/g'
 
 watch:
 	$(COMPOSE) watch
@@ -47,6 +45,13 @@ fclean:	clean
 	@rm -f $(VM_DISK) $(VM_DISK_SEED) $(VM_STORE_DISK) $(VM_DISK_CONFIG)
 
 re:		kill fclean all
+
+console:
+	@echo "Connecting to QEMU monitor. Use 'quit' to exit, or 'system_powerdown' to shutdown the VM."
+	@echo "For more commands, type 'help' in the monitor."
+	@echo "To switch between console and monitor, use Ctrl-a c"
+	@echo "Press Ctrl-C to exit when boot is complete and continue with the build process."
+	-@nc -U qemu-monitor-socket || true
 
 ssh:
 	@echo "Attempting to connect to VM..."
@@ -65,12 +70,18 @@ ssh:
 kill:
 	-pkill -f qemu-system-x86_64
 	-pgrep -f qemu-system-x86_64 | xargs -r kill -9
+	-rm qemu-monitor-socket
 
 check:
 	cloud-init schema --config-file $(VM_DISK_CONFIG)
 
-vm-perm:
-	$(SUDO) 'chown -R $(LOGIN):$(LOGIN) /home/$(LOGIN)/data/'
+vm-check:
+	@if [ -e qemu-monitor-socket ]; then \
+		echo "VM is already running. Skipping vm-start."; \
+	else \
+		echo "VM is not running. Starting VM..."; \
+		$(MAKE) vm-start; \
+	fi
 
 vm-start: vm-prepare vm-run
 
@@ -100,46 +111,37 @@ vm-run:
 		-drive file=$(VM_DISK),format=qcow2,if=virtio,index=1 \
 		-drive file=$(VM_DISK_SEED),format=raw,if=virtio,index=0 \
 		-drive file=$(VM_STORE_DISK),format=qcow2,if=virtio,index=2 \
-		-netdev user,id=mynetbase,hostfwd=tcp::$(SSH_PORT)-:22,hostfwd=tcp::${HTTP_PORT}-:80,hostfwd=tcp::${HTTPS_PORT}-:443 \
-		-device virtio-net-pci,netdev=mynetbase \
-		-netdev user,id=mynetftp,hostfwd=tcp::$(FTP_COMMAND_PORT)-:21,hostfwd=tcp::$(FTP_DATA_PORT)-:20 \
-		-device virtio-net-pci,netdev=mynetftp \
-		$(foreach port,$(shell seq $(FTP_PASSIVE_PORT_MIN) $(FTP_PASSIVE_PORT_MAX)),\
-			-netdev user,id=mynet$(port),hostfwd=tcp::$(port)-:$(port) \
-			-device virtio-net-pci,netdev=mynet$(port) \
-		) \
+		-netdev user,id=mynet0,$(FWD_LIST) \
+		-device virtio-net-pci,netdev=mynet0 \
 		-fsdev local,security_model=passthrough,id=fsdev0,path=$(SHARE_FOLDER) \
 		-device virtio-9p-pci,id=fs0,fsdev=fsdev0,mount_tag=share \
 		-no-reboot \
 		-serial mon:stdio \
 		-nographic \
-		-monitor unix:qemu-monitor-socket,server,nowait &
-	@echo "${GREEN}VM started in background. Waiting for boot to complete...${NC}"
-	@$(MAKE) vm-console
-
-vm-console:
-	@echo "Connecting to QEMU monitor. Use 'quit' to exit, or 'system_powerdown' to shutdown the VM."
-	@echo "For more commands, type 'help' in the monitor."
-	@echo "To switch between console and monitor, use Ctrl-a c"
-	@echo "Press Ctrl-C to exit when boot is complete and continue with the build process."
-	-@nc -U qemu-monitor-socket || true
+		-monitor unix:qemu-monitor-socket,server,nowait & \
+	echo "${GREEN}VM started in background. Waiting for boot to complete...${NC}"; \
+	$(MAKE) vm-console;
 
 vm-stop:
 	$(SUDO) 'systemctl poweroff'
 
-.PHONY: all build up down clean fclean re ssh vm-ready vm-start vm-stop vm-setup vm-mount vm-ssh-copy vm-console vm-prepare vm-run
+.PHONY: all up down clean fclean re ssh vm-ready vm-start vm-stop vm-setup vm-mount vm-ssh-copy vm-console vm-prepare vm-run
 
 define wait_for_ssh
-	@for i in $$(seq 1 30); do \
+	@for i in $$(seq 1 60); do \
 		if $(SSH) -q exit; then \
 			echo "VM is ready."; \
 			break; \
 		fi; \
-		echo "Waiting for SSH connection... ($$i/30)"; \
+		echo "Waiting for SSH connection... ($$i/60)"; \
 		sleep 5; \
-	done
-	@if ! $(SSH) -q exit; then \
+	done; \
+	if ! $(SSH) -q exit; then \
 		echo "${RED}Failed to connect to SSH after multiple attempts.${NC}"; \
 		exit 1; \
 	fi
+endef
+
+define FTP_PASSIVE_PORTS
+	$(shell seq $(FTP_PASSIVE_PORT_MIN) $(FTP_PASSIVE_PORT_MAX))
 endef

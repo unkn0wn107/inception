@@ -52,8 +52,8 @@ runcmd:
   # Ensure root filesystem is resized
   - cloud-init single --name cc_resizefs --frequency always || true
   
-  # Update initramfs
-  - update-initramfs -u || true
+  # Update initramfs : takes too long for evaluation
+  # - update-initramfs -u || true
 
   # Update and install necessary packages
   - apt-get update -y
@@ -85,9 +85,6 @@ runcmd:
   # Mount the shared folder with error handling
   - echo 'share /home/{{LOGIN}}/srcs 9p trans=virtio,version=9p2000.L 0 0' >> /etc/fstab
   - mount -t 9p -o trans=virtio,version=9p2000.L share /home/{{LOGIN}}/srcs || exit 1
-
-  # Set correct ownership for the mounted directory
-  - chown {{LOGIN}}:{{LOGIN}} -r /home/{{LOGIN}}/srcs || exit 1
 
   # Final validation checks
   - systemctl is-active docker || { echo "Docker failed to start!"; exit 1; }
