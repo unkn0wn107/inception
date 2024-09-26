@@ -25,6 +25,7 @@ What you get from the PASIV device ? (Except a single `make` press !)
 
 By pressing `make`, you initiate a process akin to activating the PASIV device. The system automates the setup of your multi-layered infrastructure, allowing you to dive deep into a world of interconnected agents while going deeper into your dream.
 
+![Pasiv device](https://static1.srcdn.com/wordpress/wp-content/uploads/2023/03/how-inception-s-dream-machine-works.jpg?q=50&fit=crop&w=1140&h=&dpr=1.5)
 
 ## Overview
 
@@ -108,6 +109,8 @@ It is the continuity of [Auto Born2BeRoot](https://github.com/unkn0wn107/Born2be
 - **Clean resources (except long-term data)**: `make clean`
 - **Delete VM and all resources**: `make fclean`
 - **Recreate VM and services**: `make re`
+
+![Commands](https://resize-v3.pubpub.org/eyJidWNrZXQiOiJhc3NldHMucHVicHViLm9yZyIsImtleSI6ImY1ZDQxazd3LzExNTY5MjAxOTc1MTA1LmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJ3aWR0aCI6ODAwLCJmaXQiOiJpbnNpZGUiLCJ3aXRob3V0RW5sYXJnZW1lbnQiOnRydWV9fX0=)
 
 
 ## Docker Compose Configuration
