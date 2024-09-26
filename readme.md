@@ -2,11 +2,13 @@
 
 ## TLDR
 
+`make init-env`
 `make`
 
 42 stud : Use responsibly, this is not made for you to instant pass inception project.
 The goal is to demonstrate the power of server-vm (vs virtual*** graphical f**** VMs) coupled with a bashy-style infrastructure-as-code.
 
+Validated at 125% outstanding project :)
 
 ## The PASIV device !
 
@@ -36,7 +38,8 @@ It is the continuity of [Auto Born2BeRoot](https://github.com/unkn0wn107/Born2be
 
 ## Features
 
-- **Virtual Machine Setup**: QEMU/KVM to run a Debian-based VM with auto cloud-init configuration.
+- **Virtual Machine Setup**: QEMU/KVM to run a Debian-based VM with auto cloud-init configuration from a fresh Debian cloud image.
+
 - **Dockerized Services**:
   - **Alpine**: All services are built on scratch alpine:3.19.
   - **NGINX**: Reverse proxy with TLSv1.2/1.3.
@@ -47,6 +50,7 @@ It is the continuity of [Auto Born2BeRoot](https://github.com/unkn0wn107/Born2be
   - **Static Website**: Simple js ~~static~~ stupid site.
   - **Adminer**: Web-based database management.
   - **Mailhog**: Development environment mail all-catcher set-up with Wordpress.
+
 - **Automated Management**: Controlled via Makefile commands for easy setup, teardown, and maintenance.
 - **Secure Configuration**: Environment variables and `.env` files manage sensitive data without hardcoding credentials.
 - **Persistent Storage**: Utilizes Docker volumes to ensure data persistence across container restarts.
@@ -79,16 +83,16 @@ It is the continuity of [Auto Born2BeRoot](https://github.com/unkn0wn107/Born2be
 3. **Run the Makefile**:
    - From the root directory, execute:
      ```bash
-     make
+     make init-env && make
      ```
-   - This command will (do everything) :
+   - These commands will (do everything) :
      - Create and populate .env file with credentials.
 	 - Download latest debian 12 generic cloud image.
 	 - Seed the image with cloud-init.
      - Set up SSH access.
      - Mount shared directories.
-     - Build and launch all Docker containers.
-     - Log for real-time monitoring.
+   - Build and launch all Docker containers.
+   - Log for real-time monitoring.
 
 4. **Access the Services**:
    - **WordPress**: `https://marvin.42lyon.fr:8443`
