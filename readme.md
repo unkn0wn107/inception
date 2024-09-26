@@ -125,6 +125,13 @@ The `docker-compose.yml` file orchestrates the deployment of all services with t
   - Each service is built from its respective `Dockerfile` located in the `requirements` directory.
   - Environment variables are managed through the `.env` file, example in .env.example.
 
+
+## Xorriso vs cloud-localds
+
+I used xorriso to patch cloud-init config because cloud-localds was not available on school machines.
+See commit eb3719e for cloud-localds approach.
+
+
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
