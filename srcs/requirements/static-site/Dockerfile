@@ -6,7 +6,7 @@
 #    By: agaley <agaley@student.42lyon.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/09/25 18:14:48 by agaley            #+#    #+#              #
-#    Updated: 2024/09/25 21:05:45 by agaley           ###   ########lyon.fr    #
+#    Updated: 2024/09/26 02:35:03 by agaley           ###   ########lyon.fr    #
 #                                                                              #
 # **************************************************************************** #
 
@@ -22,6 +22,7 @@ EXPOSE 80
 RUN apk add --no-cache nginx openssl shadow && \
 	rm -f /var/cache/apk/*
 
+RUN mkdir -p /usr/share/nginx/html
 RUN rm -rf /usr/share/nginx/html/*
 COPY ./app /usr/share/nginx/html
 COPY ./static-site.conf /etc/nginx/http.d/default.conf

@@ -17,7 +17,10 @@ DB_NAME="${DB_NAME}"
 DB_USER="${DB_USER}"
 DB_PASSWORD="${DB_PASS}"
 DB_HOST=mariadb
-WP_ENV='production'
+WP_ENV='development'
+WP_DEBUG=true
+WP_DEBUG_LOG='/var/www/html/wp-content/debug.log'
+WP_DEBUG_DISPLAY=true
 WP_HOME="https://${DOMAIN_NAME}:8443"
 WP_SITEURL="https://${DOMAIN_NAME}:8443/wp"
 REDIS_HOST="${REDIS_HOST}"
@@ -25,7 +28,6 @@ REDIS_PORT=6379
 REDIS_PASSWORD="${REDIS_PASS}"
 REDIS_DATABASE=0
 WP_CACHE=true
-# WP_DEBUG_LOG='/path/to/debug.log'
 ${WP_SALTS}
 EOF
 
@@ -58,7 +60,7 @@ wp plugin activate redis-cache
 wp redis enable
 
 # Add custom SMTP configuration function
-cat <<EOF >> "${INSTALL_DIR}/web/app/mu-plugins/custom-smtp.php"
+cat <<EOF > "${INSTALL_DIR}/web/app/mu-plugins/custom-smtp.php"
 <?php
 add_action( 'phpmailer_init', 'custom_phpmailer_init' );
 function custom_phpmailer_init( \$phpmailer ) {

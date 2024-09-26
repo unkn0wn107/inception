@@ -2,6 +2,12 @@
 
 set -eux
 
+sed -e "s|\${DOMAIN_NAME}|$DOMAIN_NAME|g" \
+    -e "s|\${CERT_DIR}|$CERT_DIR|g" \
+    /etc/nginx/http.d/wordpress.conf > /etc/nginx/http.d/wordpress.conf.processed
+
+mv /etc/nginx/http.d/wordpress.conf.processed /etc/nginx/http.d/wordpress.conf
+
 KEY_FILE="${CERT_DIR}/${DOMAIN_NAME}.key"
 CRT_FILE="${CERT_DIR}/${DOMAIN_NAME}.crt"
 

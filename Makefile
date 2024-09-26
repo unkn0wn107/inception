@@ -6,22 +6,31 @@
 #    By: agaley <agaley@student.42lyon.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/03/23 00:53:05 by agaley            #+#    #+#              #
-#    Updated: 2024/09/25 17:30:38 by agaley           ###   ########lyon.fr    #
+#    Updated: 2024/09/26 02:27:28 by agaley           ###   ########lyon.fr    #
 #                                                                              #
 # **************************************************************************** #
 
-include srcs/.env
+-include srcs/.env
 
 SSH=ssh -p $(SSH_PORT) $(LOGIN)@localhost
 SUDO=$(SSH) sudo
 
 COMPOSE=$(SSH) -t "cd /home/$(LOGIN)/srcs && docker compose"
 
-define FTP_PASSIVE_PORTS
-	$(shell seq $(FTP_PASSIVE_PORT_MIN) $(FTP_PASSIVE_PORT_MAX))
-endef
+SSH_FWD=hostfwd=tcp::$(SSH_PORT)-:22
+HTTP_FWD=hostfwd=tcp::${HTTP_PORT}-:80,hostfwd=tcp::${HTTPS_PORT}-:443
+STATIC_FWD=hostfwd=tcp::${STATIC_PORT}-:${STATIC_PORT}
+ADMINER_FWD=hostfwd=tcp::${ADMINER_PORT}-:${ADMINER_PORT}
+MAILHOG_FWD=hostfwd=tcp::${MAILHOG_PORT}-:${MAILHOG_PORT}
+FTP_FWD=hostfwd=tcp::$(FTP_COMMAND_PORT)-:$(FTP_COMMAND_PORT),hostfwd=tcp::$(FTP_DATA_PORT)-:$(FTP_DATA_PORT)
+FTP_PASSIVE_PORTS=$(shell seq $(FTP_PASSIVE_PORT_MIN) $(FTP_PASSIVE_PORT_MAX))
+FTP_PASSIVE_FWD=$(foreach port,$(FTP_PASSIVE_PORTS),hostfwd=tcp::$(port)-:$(port))
 
-all:	init-env vm-check up logs
+FWD_LIST=$(shell echo "$(SSH_FWD),$(HTTP_FWD),$(STATIC_FWD),$(ADMINER_FWD),$(MAILHOG_FWD),$(FTP_FWD),$(FTP_PASSIVE_FWD)" | \
+	sed 's/,\s*$$//' | \
+	tr ' ' ',')
+
+all:	init-env vm-check wait-cloud-init up logs
 
 up:
 	$(COMPOSE) up --build -d
@@ -50,6 +59,27 @@ fclean:	clean
 
 re:		kill fclean all
 
+status:
+	$(SSH) cloud-init status
+
+wait-cloud-init:
+	@echo "Waiting for cloud-init to complete..."
+	@for i in $$(seq 1 100); do \
+		status=yes; \
+		status=$$($(SSH) cloud-init status | grep status | awk '{print $$2}'); \
+		if [ "$$status" = "done" ]; then \
+			echo "Cloud-init completed successfully."; \
+			exit 0; \
+		elif [ "$$status" = "error" ]; then \
+			echo "Cloud-init failed. Check logs for details."; \
+			exit 1; \
+		fi; \
+		echo "Cloud-init status: $$status (attempt $$i/100)"; \
+		sleep 5; \
+	done; \
+	echo "Timeout waiting for cloud-init to complete. Check VM status."; \
+	exit 1
+
 console:
 	@echo "Connecting to QEMU monitor. Use 'quit' to exit, or 'system_powerdown' to shutdown the VM."
 	@echo "For more commands, type 'help' in the monitor."
@@ -76,7 +106,7 @@ kill:
 	-pgrep -f qemu-system-x86_64 | xargs -r kill -9
 	-rm qemu-monitor-socket
 
-check:
+vm-check-config:
 	cloud-init schema --config-file $(VM_DISK_CONFIG)
 
 vm-check:
@@ -122,24 +152,26 @@ vm-run:
 	echo "${GREEN}VM started in background. Waiting for boot to complete...${NC}"; \
 	$(MAKE) vm-console;
 
-vm-stop:
-	$(SUDO) 'systemctl poweroff'
-
 init-env:
+	@if ! command -v openssl >/dev/null 2>&1; then \
+		echo "OpenSSL is required to create credentials."; \
+		echo "Please install openssl or create .env file manually."; \
+		exit 1; \
+	fi
 	@if [ ! -f srcs/.env ]; then \
 		echo "Creating .env ..."; \
 		cp srcs/.env.example srcs/.env; \
-		sed -i 's/^LOGIN=.*/LOGIN=$(shell whoami)/' srcs/.env; \
-		sed -i 's/^VM_LOGIN_PASS=.*/VM_LOGIN_PASS=$(shell openssl rand -base64 12)/' srcs/.env; \
-		sed -i 's/^DB_ROOT_PASS=.*/DB_ROOT_PASS=$(shell openssl rand -base64 12)/' srcs/.env; \
-		sed -i 's/^DB_PASS=.*/DB_PASS=$(shell openssl rand -base64 12)/' srcs/.env; \
-		sed -i 's/^WP_ADMIN_PASS=.*/WP_ADMIN_PASS=$(shell openssl rand -base64 12)/' srcs/.env; \
-		sed -i 's/^WP_USER_PASS=.*/WP_USER_PASS=$(shell openssl rand -base64 12)/' srcs/.env; \
-		sed -i 's/^REDIS_PASS=.*/REDIS_PASS=$(shell openssl rand -base64 12)/' srcs/.env; \
-		sed -i 's/^FTP_PASS=.*/FTP_PASS=$(shell openssl rand -base64 12)/' srcs/.env; \
+		sed -i 's|^LOGIN=.*|LOGIN=$(shell whoami)|' srcs/.env; \
+		sed -i 's|^VM_LOGIN_PASS=.*|VM_LOGIN_PASS=$(shell openssl rand -base64 12)|' srcs/.env; \
+		sed -i 's|^DB_ROOT_PASS=.*|DB_ROOT_PASS=$(shell openssl rand -base64 12)|' srcs/.env; \
+		sed -i 's|^DB_PASS=.*|DB_PASS=$(shell openssl rand -base64 12)|' srcs/.env; \
+		sed -i 's|^WP_ADMIN_PASS=.*|WP_ADMIN_PASS=$(shell openssl rand -base64 12)|' srcs/.env; \
+		sed -i 's|^WP_USER_PASS=.*|WP_USER_PASS=$(shell openssl rand -base64 12)|' srcs/.env; \
+		sed -i 's|^REDIS_PASS=.*|REDIS_PASS=$(shell openssl rand -base64 12)|' srcs/.env; \
+		sed -i 's|^FTP_PASS=.*|FTP_PASS=$(shell openssl rand -base64 12)|' srcs/.env; \
 		echo "Created .env file with secure passwords."; \
 	else \
 		echo ".env file already exists. Using it."; \
 	fi
 
-.PHONY: all up down clean fclean re ssh vm-ready vm-start vm-stop vm-setup vm-mount vm-ssh-copy vm-console vm-prepare vm-run
+.PHONY: all up info logs watch down stop clean fclean re status wait-cloud-init console ssh kill vm-check-config vm-check vm-start vm-prepare vm-run init-env

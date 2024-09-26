@@ -1,23 +1,51 @@
 # Inception Local Docker Infrastructure
 
+## TLDR
+
+`make`
+
+42 stud : Use responsibly, this is not made for you to instant pass inception project.
+The goal is to demonstrate the power of server-vm (vs virtual*** graphical f**** VMs) coupled with a bashy-style infrastructure-as-code.
+
+
 ## The PASIV device !
+
+The PASIV (Portable Automated Somnacin IntraVenous) device is a compact machine that allows multiple people to share a dream state. Much like how the PASIV device creates a layered dream world, this project sets up a multi-layered, interconnected infrastructure using Docker containers within a virtual machine.
+
+Just as the PASIV device requires careful configuration and synchronization to create a stable shared dream, our project uses Docker Compose to orchestrate multiple services, ensuring they work together seamlessly. The virtual machine acts as the "first level" of the dream, with each Docker container representing a deeper layer of functionality.
+
+What you get from the PASIV device ? (Except a single `make` press !) 
+
+1. Layered Architecture: Multiple interconnected agents (containers) within a controlled environment (VM).
+2. Precise Timing: Automated setup and synchronization of services.
+3. Shared Resources: Containers communicate and share data, much like dreamers sharing a dream space.
+4. Stability: Carefully configured to maintain a stable environment.
+5. Portability: The entire setup can be recreated on different host systems.
+6. Reality Check: Cloud-init status verification ensures the environment is properly initialized, much like a totem confirms the dreamer's reality.
+
+By pressing `make`, you initiate a process akin to activating the PASIV device. The system automates the setup of your multi-layered infrastructure, allowing you to dive deep into a world of interconnected agents while going deeper into your dream.
+
 
 ## Overview
 
-The **The PASIV device (Inception)** project sets up a Docker-based environment within a QEMU/KVM virtual machine (VM). This infrastructure includes multiple services for a wordpress application, such as NGINX with TLS, WordPress with PHP-FPM, MariaDB, Redis, FTP server, a static website, Adminer for database management, and Varnish for caching. The entire setup is automated using cloud-init for OS layer and docker compose for application layer.
+The **The PASIV device (Inception)** project sets up a Docker-based development environment within a QEMU/KVM virtual machine (VM). This infrastructure includes multiple services for a wordpress application, such as NGINX with TLS, WordPress with PHP-FPM, MariaDB, Redis, FTP server, a static website, Adminer for database management, and Varnish for caching. The entire setup is automated using cloud-init for OS layer and docker compose for application layer.
+
+It is the continuity of [Auto Born2BeRoot](https://github.com/unkn0wn107/Born2beRoot) using more modern technologies : cloud-init vs tiresome preseed and docker compose for service layer.
+
 
 ## Features
 
 - **Virtual Machine Setup**: QEMU/KVM to run a Debian-based VM with auto cloud-init configuration.
 - **Dockerized Services**:
-  - **NGINX**: Reverse proxy with TLSv1.2/1.3 for secure connections.
+  - **Alpine**: All services are built on scratch alpine:3.19.
+  - **NGINX**: Reverse proxy with TLSv1.2/1.3.
   - **WordPress + PHP-FPM**: WordPress application based on [Roots Bedrock](https://roots.io/bedrock/).
   - **MariaDB**: WordPress database.
-  - **Redis**: Object caching for performance.
-  - **FTP Server**: File transfers to WordPress.
-  - **Static Website**: Simple js static site.
+  - **Redis**: Object caching for performance, linked to Wordpress redis cache plugin.
+  - **FTP Server**: File transfers to WordPress : `ftp localhost 2121`.
+  - **Static Website**: Simple js ~~static~~ stupid site.
   - **Adminer**: Web-based database management.
-  - **Varnish**: Implements caching to improve content delivery speed.
+  - **Mailhog**: Development environment mail all-catcher set-up with Wordpress.
 - **Automated Management**: Controlled via Makefile commands for easy setup, teardown, and maintenance.
 - **Secure Configuration**: Environment variables and `.env` files manage sensitive data without hardcoding credentials.
 - **Persistent Storage**: Utilizes Docker volumes to ensure data persistence across container restarts.
@@ -28,100 +56,59 @@ The **The PASIV device (Inception)** project sets up a Docker-based environment 
 - **Host Machine**:
   - Linux-based operating system.
   - QEMU/KVM installed and configured.
-  - Docker and Docker Compose installed.
-  - Make utility installed.
-  - SSH access with a public key.
+  - Make.
+  - SSH access with a public key ~/.ssh/id_rsa.pub.
+  - A local dns record /etc/hosts : 127.0.0.1   marvin.42.fr
+	(there is a hack with fakedns for rootless machine)
   
 - **Virtual Machine**:
-  - Debian 12 (or compatible) as the base image.
-  - Sufficient resources allocated (e.g., 4GB RAM, 4 CPU cores).
+  - Resources : adjust default MEMORY=8192 VCPU=16 in .env.example or .env.
+
 
 ## Setup Instructions
 
 1. **Clone the Repository**:
    ```bash
-   git clone https://github.com/yourusername/inception-docker-infrastructure.git
-   cd inception-docker-infrastructure
+   git clone https://github.com/unkn0wn107/inception
+   cd inception
    ```
 
-2. **Configure Environment Variables**:
-   - Navigate to the `srcs` directory.
-   - Create a `.env` file based on the provided template:
-     ```bash
-     cp .env.example .env
-     ```
-   - Populate the `.env` file with your configurations, such as domain name, passwords, and ports.
+2. **Adjust VM resources MEMORY VCPU in .env.example**
 
-3. **Prepare the Virtual Machine**:
-   - Ensure that the VM image (`debian-12-generic-amd64.qcow2`) is present in the root directory. If not, the Makefile will attempt to download and prepare it.
-
-4. **Run the Makefile**:
+3. **Run the Makefile**:
    - From the root directory, execute:
      ```bash
-     make all
+     make
      ```
-   - This command will:
-     - Start the VM.
+   - This command will (do everything) :
+     - Create and populate .env file with credentials.
+	 - Download latest debian 12 generic cloud image.
+	 - Seed the image with cloud-init.
      - Set up SSH access.
      - Mount shared directories.
      - Build and launch all Docker containers.
-     - Tail the logs for real-time monitoring.
+     - Log for real-time monitoring.
 
-5. **Access the Services**:
-   - **WordPress**: `https://yourdomain.com:443`
-   - **Static Site**: `http://yourdomain.com:80`
-   - **Adminer**: `http://yourdomain.com:8080`
-   - **FTP Server**: Connect using your FTP client to the configured ports.
+4. **Access the Services**:
+   - **WordPress**: `https://marvin.42lyon.fr:8443`
+   - **Stupid Site**: `http://marvin.42lyon.fr:8090`
+   - **Adminer**: `http://marvin.42lyon.fr:8081`
+   - **Mail Hog**: `http://marvin.42lyon.fr:8025`
+   - **FTP Server**: `ftp localhost 2121`
+
 
 ## Commands
 
-- **Create VM and start All Services**:
-  ```bash
-  make
-  ```
-When cloud init has reached the target, press enter and approve the new server.
-Services will then build and start.
-  
-- **Bring up services (after changes)**:
-  ```bash
-  make up
-  ```
-  
-- **View service logs**:
-  ```bash
-  make logs
-  ```
-  
-- **Stop and remove services**:
-  ```bash
-  make down
-  ```
-  
-- **Clean resources**:
-  ```bash
-  make clean
-  ```
-  
-- **Cleaning Up ! - Delete VM**:
-  - To remove VM and all containers, images, volumes, and networks:
-    ```bash
-    make fclean
-    ```
-  
-- **fclean, recreates VM and services**:
-  ```bash
-  make re
-  ```
-  
-- **Connect to VM via SSH**:
-  ```bash
-  make ssh
-  ```
-  
-- **Check VM Status**:
-  ```bash
-  make vm-check
-  ```
+- **Create VM and start All Services**: `make`
+- **Bring up services (after modification)**: `make up`
+- **View services logs**: `make logs`
+- **Connect to VM via SSH**: `make ssh`
+- **Enter VM Qemu Console**: `make console`
+- **Stop services**: `make down`
+- **Clean resources (except long-term data)**: `make clean`
+- **Delete VM and all resources**: `make fclean`
+- **Recreate VM and services**: `make re`
+
 
 ## Docker Compose Configuration
 

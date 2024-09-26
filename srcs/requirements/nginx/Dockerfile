@@ -6,7 +6,7 @@
 #    By: agaley <agaley@student.42lyon.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/03/24 11:53:02 by agaley            #+#    #+#              #
-#    Updated: 2024/09/02 15:10:28 by agaley           ###   ########lyon.fr    #
+#    Updated: 2024/09/26 02:02:50 by agaley           ###   ########lyon.fr    #
 #                                                                              #
 # **************************************************************************** #
 
@@ -14,6 +14,9 @@ FROM alpine:3.19
 
 ARG EMAIL
 ARG CERT_DIR
+
+ENV DOMAIN_NAME=${DOMAIN_NAME}
+ENV CERT_DIR=${CERT_DIR}
 
 LABEL maintainer=${EMAIL}
 
